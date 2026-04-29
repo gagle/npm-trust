@@ -32,3 +32,7 @@ export interface ListTrustOptions {
 export interface Logger {
   readonly log: (message: string) => void;
 }
+
+export interface RuntimeLogger extends Logger {
+  readonly error: (message: string) => void;
+}

@@ -2,11 +2,12 @@ import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { discoverPackages } from "./discover.js";
-import type { CliOptions } from "./interfaces/cli.interface.js";
+import type { CliOptions, RuntimeLogger } from "./interfaces/cli.interface.js";
 import { configureTrust, listTrust } from "./trust.js";
 
 const MIN_NODE_MAJOR = 24;
 const MIN_NPM_MAJOR = 11;
+const MIN_NPM_VERSION = "11.5.1";
 
 const REPO_PATTERN = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 const WORKFLOW_PATTERN = /^[A-Za-z0-9._/-]+\.ya?ml$/;
@@ -23,6 +24,12 @@ export class CliError extends Error {
 
 export function checkNodeVersion(): void {
   const version = process.versions.node;
+  if (typeof version !== "string") {
+    throw new CliError(
+      `Error: Node.js >= ${MIN_NODE_MAJOR} required (process.versions.node is unavailable).`,
+      1,
+    );
+  }
   const major = Number(version.split(".")[0]);
   if (Number.isNaN(major) || major < MIN_NODE_MAJOR) {
     throw new CliError(
@@ -40,7 +47,7 @@ export function checkNpmVersion(): void {
   });
   if (result.error || result.status !== 0) {
     throw new CliError(
-      `Error: could not determine npm version. Ensure npm >= ${MIN_NPM_MAJOR}.5.1 is installed.`,
+      `Error: could not determine npm version. Ensure npm >= ${MIN_NPM_VERSION} is installed.`,
       1,
     );
   }
@@ -48,7 +55,7 @@ export function checkNpmVersion(): void {
   const major = Number(version.split(".")[0]);
   if (Number.isNaN(major) || major < MIN_NPM_MAJOR) {
     throw new CliError(
-      `Error: npm >= ${MIN_NPM_MAJOR} required (found ${version}). The "npm trust" command was added in npm 11.5.1.`,
+      `Error: npm >= ${MIN_NPM_MAJOR} required (found ${version}). The "npm trust" command was added in npm ${MIN_NPM_VERSION}.`,
       1,
     );
   }
@@ -137,10 +144,7 @@ function validateWorkflow(workflow: string): void {
 
 export async function runCli(
   argv: ReadonlyArray<string>,
-  logger: {
-    readonly log: (message: string) => void;
-    readonly error: (message: string) => void;
-  } = console,
+  logger: RuntimeLogger = console,
 ): Promise<number> {
   try {
     checkNodeVersion();

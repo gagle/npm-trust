@@ -18,9 +18,10 @@ const CONSOLE_LOGGER: Logger = {
   },
 };
 
-type OutputKind = "already" | "not_published" | "needs_auth" | "error";
+type ClassifiedRun = TrustResult | "needs_auth";
+type FailureKind = Exclude<ClassifiedRun, "configured">;
 
-function classifyOutput(output: string): OutputKind {
+function classifyOutput(output: string): FailureKind {
   const lower = output.toLowerCase();
   if (lower.includes("409") || lower.includes("conflict")) {
     return "already";
@@ -65,21 +66,11 @@ function runInteractive(pkg: string, repo: string, workflow: string): number {
   return result.status ?? 1;
 }
 
-function classifyCaptured(captured: CapturedRun): TrustResult | "needs_auth" {
+function classifyCaptured(captured: CapturedRun): ClassifiedRun {
   if (captured.exitCode === 0) {
     return "configured";
   }
-  const kind = classifyOutput(captured.output);
-  if (kind === "already") {
-    return "already";
-  }
-  if (kind === "not_published") {
-    return "not_published";
-  }
-  if (kind === "needs_auth") {
-    return "needs_auth";
-  }
-  return "error";
+  return classifyOutput(captured.output);
 }
 
 function handleAuthRetry(pkg: string, repo: string, workflow: string): TrustResult {
