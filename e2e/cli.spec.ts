@@ -81,8 +81,8 @@ describe("CLI e2e", () => {
       expect(result.stdout).toContain("--scope");
     });
 
-    it("should print --otp in the help text", () => {
-      expect(result.stdout).toContain("--otp");
+    it("should print --dry-run in the help text", () => {
+      expect(result.stdout).toContain("--dry-run");
     });
   });
 
@@ -210,32 +210,7 @@ describe("CLI e2e", () => {
     });
   });
 
-  describe("when --otp is passed", () => {
-    let result: RunCliResult;
-
-    beforeEach(async () => {
-      result = await runCli({
-        args: ["--packages", "@x/a", "--repo", "o/r", "--workflow", "w.yml", "--otp", "654321"],
-        fakeNpm: { responses: [{ exitCode: 0 }] },
-      });
-    });
-
-    it("should exit 0", () => {
-      expect(result.exitCode).toBe(0);
-    });
-
-    it("should not include the OTP value anywhere in npm argv (no leak via process listing)", () => {
-      const argv = result.fakeNpmCalls[0] ?? [];
-      expect(argv.some((token) => token.includes("654321"))).toBe(false);
-    });
-
-    it("should not include any --otp flag in npm argv", () => {
-      const argv = result.fakeNpmCalls[0] ?? [];
-      expect(argv.some((token) => token.startsWith("--otp"))).toBe(false);
-    });
-  });
-
-  describe("when 2FA is required without --otp in non-TTY (CI)", () => {
+  describe("when 2FA is required in non-TTY (CI)", () => {
     let result: RunCliResult;
 
     beforeEach(async () => {
@@ -379,24 +354,6 @@ describe("CLI e2e", () => {
 
     it("should not show evidence of backtick command substitution", () => {
       expect(result.fakeNpmCalls[0]).not.toContain("@x/aHACKED");
-    });
-  });
-
-  describe("when --otp has a non-numeric value", () => {
-    let result: RunCliResult;
-
-    beforeEach(async () => {
-      result = await runCli({
-        args: ["--packages", "@x/a", "--repo", "o/r", "--workflow", "w.yml", "--otp", "abc123"],
-      });
-    });
-
-    it("should exit 1", () => {
-      expect(result.exitCode).toBe(1);
-    });
-
-    it("should print the --otp validation error", () => {
-      expect(result.stderr).toContain("--otp must be a 6-8 digit numeric code");
     });
   });
 

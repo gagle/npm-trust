@@ -8,7 +8,6 @@ import { configureTrust, listTrust } from "./trust.js";
 const MIN_NODE_MAJOR = 24;
 const MIN_NPM_MAJOR = 11;
 
-const OTP_PATTERN = /^\d{6,8}$/;
 const REPO_PATTERN = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 const WORKFLOW_PATTERN = /^[A-Za-z0-9._/-]+\.ya?ml$/;
 
@@ -70,8 +69,11 @@ Options:
   --workflow <file>      GitHub Actions workflow file (e.g. release.yml)
   --list                 list current trust status instead of configuring
   --dry-run              show what would be done without making changes
-  --otp <code>           one-time password for non-interactive 2FA (CI use)
-  --help                 show this help message`);
+  --help                 show this help message
+
+Note: 'npm trust' uses web-based 2FA only. The first call opens a browser
+authentication flow; on the npm site there's a "skip 2FA for the next 5
+minutes" option that lets bulk operations proceed without re-authenticating.`);
 }
 
 export interface ParseCliArgsResult {
@@ -89,7 +91,6 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       workflow: { type: "string" },
       list: { type: "boolean", default: false },
       "dry-run": { type: "boolean", default: false },
-      otp: { type: "string" },
       help: { type: "boolean", default: false },
     },
     allowPositionals: true,
@@ -112,18 +113,8 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       workflow: values.workflow,
       list: Boolean(values.list),
       dryRun: Boolean(values["dry-run"]),
-      otp: values.otp,
     },
   };
-}
-
-function validateOtp(otp: string | undefined): void {
-  if (otp === undefined) {
-    return;
-  }
-  if (!OTP_PATTERN.test(otp)) {
-    throw new CliError("Error: --otp must be a 6-8 digit numeric code", 1);
-  }
 }
 
 function validateRepo(repo: string): void {
@@ -162,8 +153,6 @@ export async function runCli(
       return 0;
     }
 
-    validateOtp(options.otp);
-
     let packages: ReadonlyArray<string>;
     if (options.packages && options.packages.length > 0) {
       packages = [...options.packages];
@@ -200,10 +189,6 @@ export async function runCli(
 
     validateRepo(options.repo);
     validateWorkflow(options.workflow);
-
-    if (options.otp) {
-      process.env.NPM_CONFIG_OTP = options.otp;
-    }
 
     const summary = configureTrust({
       packages,

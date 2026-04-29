@@ -78,7 +78,6 @@ npx npm-trust-cli --scope @myorg --repo owner/repo --workflow release.yml --dry-
 | `--workflow <file>`   | GitHub Actions workflow filename (e.g. `release.yml`)                 |
 | `--list`              | list current trust status instead of configuring                      |
 | `--dry-run`           | show what would be done without making changes                        |
-| `--otp <code>`        | one-time password for non-interactive 2FA (CI use)                    |
 | `--help`              | show help message                                                     |
 
 ## Example output
@@ -142,12 +141,12 @@ Runs `npm trust github <pkg> --repo <r> --file <w> --yes` for every package and 
 | `dryRun`       | `boolean`                  | `false`            | Print what would happen without invoking npm.                            |
 | `logger`       | `Logger`                   | `console`          | `{ log, error }` — supply a capturing logger to suppress stdout.         |
 
-> **OTP for non-interactive use:** if you need to supply a one-time password
-> programmatically (e.g. when 2FA is required), set `process.env.NPM_CONFIG_OTP`
-> before calling `configureTrust`. The spawned `npm trust` process inherits it.
-> The library does not accept an `otp` option directly because npm's web-based
-> 2FA flow has rendered TOTP codes unreliable; for interactive 2FA, run from a
-> TTY and the CLI will fall back to a browser auth prompt automatically.
+> **2FA:** `npm trust` uses **web-based 2FA only** — there is no OTP/TOTP flag
+> to pass programmatically. The first call opens a browser auth flow; on the
+> npm site, enable the "skip 2FA for the next 5 minutes" option to let bulk
+> calls proceed without re-authenticating. `configureTrust` falls back to an
+> interactive prompt automatically when run from a TTY; in non-TTY contexts
+> (CI without an OIDC issuer) it returns `auth_failed` immediately.
 
 **Returns:** `TrustSummary`
 

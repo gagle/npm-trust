@@ -90,11 +90,10 @@ describe("configureTrust", () => {
     });
   });
 
-  describe("when npm trust succeeds for a single package with NPM_CONFIG_OTP set", () => {
+  describe("when npm trust succeeds for a single package", () => {
     let summary: TrustSummary;
 
     beforeEach(() => {
-      vi.stubEnv("NPM_CONFIG_OTP", "123456");
       spawnSyncMock.mockReturnValueOnce(ok());
       summary = configureTrust({
         packages: ["@x/a"],
@@ -112,43 +111,11 @@ describe("configureTrust", () => {
       expect(summary.failed).toBe(0);
     });
 
-    it("should pass the npm trust argv without an inline --otp flag", () => {
+    it("should pass the npm trust argv", () => {
       expect(spawnSyncMock).toHaveBeenCalledWith(
         expect.any(String),
         ["trust", "github", "@x/a", "--repo", "o/r", "--file", "w.yml", "--yes"],
         expect.anything(),
-      );
-    });
-
-    it("should inherit NPM_CONFIG_OTP from process.env into the spawned env", () => {
-      expect(spawnSyncMock).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.anything(),
-        expect.objectContaining({
-          env: expect.objectContaining({ NPM_CONFIG_OTP: "123456" }),
-        }),
-      );
-    });
-  });
-
-  describe("when otp is omitted", () => {
-    beforeEach(() => {
-      spawnSyncMock.mockReturnValueOnce(ok());
-      configureTrust({
-        packages: ["@x/a"],
-        repo: "o/r",
-        workflow: "w.yml",
-        logger: createLogger(),
-      });
-    });
-
-    it("should not set NPM_CONFIG_OTP in the spawned env", () => {
-      expect(spawnSyncMock).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.anything(),
-        expect.objectContaining({
-          env: expect.not.objectContaining({ NPM_CONFIG_OTP: expect.anything() }),
-        }),
       );
     });
   });
@@ -220,33 +187,6 @@ describe("configureTrust", () => {
 
     it("should record only the failing package in failedPackages", () => {
       expect(summary.failedPackages).toStrictEqual(["@x/a"]);
-    });
-  });
-
-  describe("when 2FA is required and NPM_CONFIG_OTP is already set in env", () => {
-    let summary: TrustSummary;
-
-    beforeEach(() => {
-      vi.stubEnv("NPM_CONFIG_OTP", "wrong");
-      spawnSyncMock.mockReturnValueOnce(fail("EOTP one-time password required"));
-      summary = configureTrust({
-        packages: ["@x/a", "@x/b"],
-        repo: "o/r",
-        workflow: "w.yml",
-        logger: createLogger(),
-      });
-    });
-
-    it("should not fall back to interactive 2FA", () => {
-      expect(spawnSyncMock).toHaveBeenCalledTimes(1);
-    });
-
-    it("should short-circuit and stop processing remaining packages", () => {
-      expect(summary.failedPackages).toStrictEqual(["@x/a"]);
-    });
-
-    it("should count the package as failed", () => {
-      expect(summary.failed).toBe(1);
     });
   });
 

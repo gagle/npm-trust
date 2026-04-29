@@ -5,7 +5,6 @@ export interface CliOptions {
   readonly workflow?: string;
   readonly list?: boolean;
   readonly dryRun?: boolean;
-  readonly otp?: string;
 }
 
 export type TrustResult = "configured" | "already" | "not_published" | "auth_failed" | "error";

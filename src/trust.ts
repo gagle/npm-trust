@@ -83,9 +83,6 @@ function classifyCaptured(captured: CapturedRun): TrustResult | "needs_auth" {
 }
 
 function handleAuthRetry(pkg: string, repo: string, workflow: string): TrustResult {
-  if (process.env.NPM_CONFIG_OTP) {
-    return "auth_failed";
-  }
   if (!process.stdout.isTTY) {
     return "auth_failed";
   }

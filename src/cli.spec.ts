@@ -181,8 +181,8 @@ describe("printUsage", () => {
       expect(logger.logs[0]).toContain("npm-trust-cli");
     });
 
-    it("should log the help text including the --otp flag", () => {
-      expect(logger.logs[0]).toContain("--otp");
+    it("should log the help text including the --scope flag", () => {
+      expect(logger.logs[0]).toContain("--scope");
     });
   });
 
@@ -254,8 +254,6 @@ describe("parseCliArgs", () => {
         "w.yml",
         "--list",
         "--dry-run",
-        "--otp",
-        "123456",
       ]).options;
     });
 
@@ -266,7 +264,6 @@ describe("parseCliArgs", () => {
         workflow: "w.yml",
         list: true,
         dryRun: true,
-        otp: "123456",
       });
     });
   });
@@ -354,24 +351,6 @@ describe("runCli", () => {
 
     it("should hint at --help", () => {
       expect(logger.errors[1]).toContain("--help");
-    });
-  });
-
-  describe("when --otp has an invalid shape", () => {
-    let logger: CapturingLogger;
-    let exitCode: number;
-
-    beforeEach(async () => {
-      logger = createLogger();
-      exitCode = await runCli(["--packages", "@x/a", "--otp", "abc"], logger);
-    });
-
-    it("should return exit code 1", () => {
-      expect(exitCode).toBe(1);
-    });
-
-    it("should log a 6-8 digit validation error", () => {
-      expect(logger.errors[0]).toContain("--otp must be a 6-8 digit");
     });
   });
 
@@ -555,7 +534,7 @@ describe("runCli", () => {
       });
       logger = createLogger();
       exitCode = await runCli(
-        ["--packages", "@x/a", "--repo", "o/r", "--workflow", "w.yml", "--otp", "123456"],
+        ["--packages", "@x/a", "--repo", "o/r", "--workflow", "w.yml"],
         logger,
       );
     });
@@ -564,7 +543,7 @@ describe("runCli", () => {
       expect(exitCode).toBe(0);
     });
 
-    it("should forward every option to configureTrust (without otp in the public payload)", () => {
+    it("should forward every option to configureTrust", () => {
       expect(configureTrustMock).toHaveBeenCalledWith({
         packages: ["@x/a"],
         repo: "o/r",
@@ -572,10 +551,6 @@ describe("runCli", () => {
         dryRun: false,
         logger,
       });
-    });
-
-    it("should route the OTP through process.env.NPM_CONFIG_OTP for the spawned npm to inherit", () => {
-      expect(process.env.NPM_CONFIG_OTP).toBe("123456");
     });
   });
 

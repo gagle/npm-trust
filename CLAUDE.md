@@ -4,8 +4,10 @@
 
 `npm-trust-cli` is a TypeScript ESM CLI **and library** that bulk-configures
 npm OIDC Trusted Publishing for every package in an npm scope. It auto-discovers
-packages via the npm registry, calls `npm trust github` for each, handles 2FA
-interactively (or via `--otp` for non-interactive use), and prints a summary.
+packages via the npm registry, calls `npm trust github` for each, and prints
+a summary. `npm trust` uses web-based 2FA only — the first call opens a
+browser auth flow; the npm UI's "skip 2FA for 5 minutes" option lets the rest
+of the bulk run finish without re-authenticating.
 
 The package ships two surfaces from the same tarball:
 

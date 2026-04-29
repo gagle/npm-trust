@@ -199,8 +199,9 @@ machine.
 > not from a non-TTY shell). npm 11+ defaults to **web-based 2FA**: it prints
 > an `https://www.npmjs.com/auth/cli/<authId>` URL that you have to open in a
 > browser to authenticate. The URL is masked when stdout isn't a TTY, and
-> `--otp <code>` is rejected on accounts configured for web-only 2FA — so do
-> not try to pipe an OTP through the agent. **Open your terminal and run:**
+> there is no reliable way for the agent to feed a TOTP/OTP code through —
+> trust commands ignore `--otp` entirely (web auth only) and modern npm
+> publish accounts default to web auth too. **Open your terminal and run:**
 >
 > ```bash
 > npm whoami                    # confirm logged in (run npm login if not)
@@ -211,7 +212,8 @@ machine.
 > and continue the skill from step 15.
 
 After it succeeds, **bootstrap OIDC trust** so future releases can use
-provenance from CI:
+provenance from CI. Run this from an interactive terminal too — `npm trust`
+uses web-based 2FA only (no `--otp` flag, no env-var escape hatch):
 
 ```bash
 node bin/npm-trust-cli.js \
@@ -221,9 +223,11 @@ node bin/npm-trust-cli.js \
 ```
 
 (The package eats its own dogfood here — `npm-trust-cli` configuring trust for
-itself.) This requires a `release.yml` workflow to exist in the repo, even if
-empty — npm validates the `--workflow` argument shape but the runtime check is
-done at publish time.
+itself.) The first invocation opens a browser auth flow; on the npm site,
+enable the "skip 2FA for the next 5 minutes" toggle so subsequent calls in a
+multi-package run can complete without re-authenticating. The named workflow
+file (`release.yml`) does not need to exist on disk for the trust record to be
+created — npm only stores the filename.
 
 #### 14b — Subsequent publishes (from CI, with provenance)
 
