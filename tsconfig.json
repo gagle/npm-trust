@@ -14,5 +14,5 @@
     "verbatimModuleSyntax": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "e2e/**/*.ts"]
+  "include": ["src/**/*.ts", "e2e/**/*.ts", "*.config.ts"]
 }

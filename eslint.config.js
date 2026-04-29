@@ -11,7 +11,9 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: ["eslint.config.js", "bin/*.js"],
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -42,6 +44,15 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",
       "@typescript-eslint/explicit-member-accessibility": "off",
+    },
+  },
+  {
+    files: ["bin/**/*.js"],
+    languageOptions: {
+      globals: {
+        process: "readonly",
+        console: "readonly",
+      },
     },
   },
   prettier,
