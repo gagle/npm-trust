@@ -1,14 +1,20 @@
 ---
 name: release
 description: >
-  Pre-flight readiness checklist + version bump + changelog + tag for npm publish.
-  Single-package CLI release: local verification → bump version → push → monitor
-  CI → tag on success. The publish workflow is triggered by the tag.
+  Pre-flight readiness checklist + version bump + changelog + tag + publish.
+  Single-package CLI release: local verification → bump version → commit → push →
+  tag → npm publish. First publish is classic from local; subsequent publishes
+  use --provenance from CI once OIDC trust is bootstrapped.
 ---
 
 # Release
 
-Two-phase release: local verification → push commit → monitor CI → tag on success.
+Single-phase release: local verification → push commit → tag → publish to npm.
+
+The first publish is **classic 2FA from local** (OIDC trust can't be configured
+on a package that doesn't exist yet, and `--provenance` needs an OIDC issuer).
+Once published once, bootstrap OIDC trust and switch subsequent publishes to
+`--provenance` from CI. See step 14 for the full flow.
 
 ## Phase 0 — v0.0.0 readiness checklist (first publish only)
 
@@ -31,9 +37,9 @@ stop and fix before proceeding.
 - [ ] `LICENSE` file exists and matches `package.json` license field.
 - [ ] `package.json` `files` only ships `dist/` and `bin/`.
 - [ ] `npm publish --dry-run` tarball contents look correct (no test files, no source).
-- [ ] `.github/workflows/ci.yml` exists and the README CI badge resolves to "passing".
+- [ ] `npm whoami` confirms you're logged in to the publishing account.
 
-## Phase 1 — Local (interactive)
+## Phase 1 — Local
 
 ### 1. Guard
 
@@ -144,53 +150,105 @@ git add CHANGELOG.md package.json
 git commit -m "chore: release v{version}"
 ```
 
-### 10. Push (commit only, NO tag)
+### 10. Push commit
 
 ```bash
 git push
 ```
 
-## Phase 2 — Background (agent monitors CI)
+### 11. Final pre-publish verification
 
-After pushing, tell the user:
-
-> Release commit pushed. Monitoring CI in the background — I'll tag and push when CI is green.
-
-### 11. Find the CI run
+Re-run all gates against the bumped version. Abort on any failure:
 
 ```bash
-COMMIT_SHA=$(git rev-parse HEAD)
-gh run list --commit "$COMMIT_SHA" --json databaseId,name,status --jq '.[] | select(.name == "CI")'
+pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm test:e2e
 ```
 
-If no run found, wait 15 seconds and retry (up to 3 attempts).
-
-### 12. Monitor CI
-
-```bash
-gh run watch <run-id> --exit-status
-```
-
-### 13. On CI success
-
-Create and push the tag:
+### 12. Tag
 
 ```bash
 git tag v{version}
+```
+
+### 13. Push the tag
+
+```bash
 git push --tags
+```
+
+### 14. Publish to npm
+
+There are **two** publish flows depending on whether this is the first publish.
+Determine which by running:
+
+```bash
+npm view npm-trust-cli version 2>/dev/null || echo "FIRST_PUBLISH"
+```
+
+- If output is `FIRST_PUBLISH` → use **14a** (classic).
+- Otherwise → use **14b** (provenance from CI).
+
+#### 14a — First publish (classic, from local)
+
+OIDC Trusted Publishing requires the package to **already exist** on the
+registry, and `--provenance` requires an OIDC issuer (i.e. CI). Neither is
+available for the first publish, so it must be a classic publish from the local
+machine:
+
+```bash
+npm whoami                          # confirm logged in
+npm publish --access public         # 2FA prompt will fire
+```
+
+After it succeeds, **bootstrap OIDC trust** so future releases can use
+provenance from CI:
+
+```bash
+node bin/npm-trust-cli.js \
+  --packages npm-trust-cli \
+  --repo gagle/npm-trust-cli \
+  --workflow release.yml
+```
+
+(The package eats its own dogfood here — `npm-trust-cli` configuring trust for
+itself.) This requires a `release.yml` workflow to exist in the repo, even if
+empty — npm validates the `--workflow` argument shape but the runtime check is
+done at publish time.
+
+#### 14b — Subsequent publishes (from CI, with provenance)
+
+Once OIDC trust is configured for the package, future publishes happen from a
+GitHub Actions workflow with `id-token: write` permission:
+
+```yaml
+- run: npm publish --access public --provenance
+```
+
+`--provenance` produces a signed SLSA attestation tied to the source commit.
+This is the payoff of having OIDC Trusted Publishing configured — it proves the
+tarball came from this repo at this commit.
+
+If the publish job fails after the tag is pushed: keep the tag (it documents
+intent), fix the publish-side issue, and re-run the workflow. Do not bump the
+version unless the failure was caused by tarball content that needs another
+commit.
+
+### 15. Verify
+
+```bash
+npm view npm-trust-cli@{version} version
 ```
 
 Notify the user:
 
-> CI passed. Tagged `v{version}` and pushed — the publish workflow is running.
-> Track it at: https://github.com/gagle/npm-trust-cli/actions
+> Released `v{version}` to npm. Tarball: https://www.npmjs.com/package/npm-trust-cli/v/{version}
 
-### 14. On CI failure
+## Failure recovery
 
-Do NOT create a tag. Notify the user:
+If any local gate (steps 1–2 or 11) fails: fix and restart from step 1.
 
-> CI failed. Release commit is on main but NOT tagged (nothing will be published).
-> Fix the issue, amend the release commit, force-push, and run `/release` again.
-> Or revert the release commit with `git revert HEAD && git push`.
+If step 14a fails after the tag is pushed: re-run `npm publish` for the same
+version once the cause is fixed (auth, network, registry). Do not bump version.
 
-Provide the failing run URL and the specific job/step that failed.
+If step 14b fails after the tag is pushed: re-run the CI workflow once the
+cause is fixed. Do not bump version unless the tarball needs new content.

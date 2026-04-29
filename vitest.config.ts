@@ -4,6 +4,10 @@ export default defineConfig({
   test: {
     globals: true,
     include: ["src/**/*.spec.ts"],
+    restoreMocks: true,
+    mockReset: true,
+    unstubGlobals: true,
+    unstubEnvs: true,
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],

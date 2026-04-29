@@ -6,7 +6,6 @@
 
 <p align="center">
   <a href="https://github.com/gagle/npm-trust-cli/blob/main/LICENSE"><img src="https://img.shields.io/github/license/gagle/npm-trust-cli" alt="license" /></a>
-  <a href="https://github.com/gagle/npm-trust-cli/actions"><img src="https://img.shields.io/github/actions/workflow/status/gagle/npm-trust-cli/ci.yml" alt="CI" /></a>
   <a href="https://www.npmjs.com/package/npm-trust-cli"><img src="https://img.shields.io/npm/v/npm-trust-cli" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/npm-trust-cli"><img src="https://img.shields.io/npm/dm/npm-trust-cli" alt="npm downloads" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/npm-trust-cli" alt="node version" /></a>
@@ -206,39 +205,3 @@ process.exit(code);
 | ------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NPM_TRUST_CLI_NPM`       | `<dirname(process.execPath)>/npm` | Override the path to the `npm` binary. Used in tests; rarely needed in production.                                                            |
 | `NPM_TRUST_CLI_REGISTRY`  | `https://registry.npmjs.org`  | Override the registry used for package discovery. Must be `https://...`, or `http://localhost` / `http://127.0.0.1` for local mirrors and tests. |
-
-## GitHub Actions
-
-The `--list` path is fully non-interactive and works as-is for periodic auditing:
-
-```yaml
-name: Audit OIDC trust
-on:
-  schedule:
-    - cron: "0 9 * * 1"
-jobs:
-  audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - run: npx npm-trust-cli --scope @myorg --list
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-```
-
-For configuring packages from CI (e.g. one-time OIDC bootstrap), pass `--otp` to skip the interactive 2FA prompt:
-
-```yaml
-- run: |
-    npx npm-trust-cli \
-      --scope @myorg \
-      --repo ${{ github.repository }} \
-      --workflow release.yml \
-      --otp ${{ secrets.NPM_OTP }}
-```
-
-## License
-
-MIT

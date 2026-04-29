@@ -4,7 +4,7 @@ import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "coverage/**", "node_modules/**", "test/e2e/fixtures/**"],
+    ignores: ["dist/**", "coverage/**", "node_modules/**", "e2e/fixtures/**"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -33,7 +33,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.spec.ts", "test/**/*.ts"],
+    files: ["**/*.spec.ts", "e2e/**/*.ts"],
     rules: {
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",

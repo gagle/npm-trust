@@ -33,7 +33,7 @@ src/
   interfaces/
     cli.interface.ts          # CliOptions, TrustResult, TrustSummary
   **/*.spec.ts                # unit tests (co-located, vitest)
-test/e2e/                     # e2e tests — spawn built CLI as child process
+e2e/                          # e2e tests — spawn built CLI as child process
 .claude/                      # rules, skills, hooks (see below)
 ```
 

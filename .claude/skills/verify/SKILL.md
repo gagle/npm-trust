@@ -47,7 +47,7 @@ have produced `dist/`.
 pnpm test:e2e
 ```
 
-Every CLI flag/path must have an e2e test. The harness lives in `test/e2e/` and
+Every CLI flag/path must have an e2e test. The harness lives in `e2e/` and
 uses a fake `npm` binary on `PATH` plus `msw` to mock the registry — no network
 calls hit the real internet.
 

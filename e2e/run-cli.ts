@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ROOT = fileURLToPath(new URL("../..", import.meta.url));
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const CLI_ENTRY = join(ROOT, "bin", "npm-trust-cli.js");
-const FAKE_NPM = join(ROOT, "test", "e2e", "fixtures", "fake-npm", "npm");
+const FAKE_NPM = join(ROOT, "e2e", "fixtures", "fake-npm", "npm");
 
 export interface FakeNpmResponse {
   readonly exitCode?: number;

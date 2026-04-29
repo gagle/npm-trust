@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const spawnSyncMock = vi.fn();
 const discoverPackagesMock = vi.fn();
@@ -18,8 +18,8 @@ vi.mock("./trust.js", () => ({
   listTrust: (...args: ReadonlyArray<unknown>) => listTrustMock(...args),
 }));
 
-const cli = await import("./cli.js");
-const { CliError, checkNodeVersion, checkNpmVersion, parseCliArgs, printUsage, runCli } = cli;
+const { CliError, checkNodeVersion, checkNpmVersion, parseCliArgs, printUsage, runCli } =
+  await import("./cli.js");
 
 interface CapturingLogger {
   readonly log: (message: string) => void;
@@ -32,361 +32,645 @@ function createLogger(): CapturingLogger {
   const logs: Array<string> = [];
   const errors: Array<string> = [];
   return {
-    log: (m) => logs.push(m),
-    error: (m) => errors.push(m),
+    log: (message) => logs.push(message),
+    error: (message) => errors.push(message),
     logs,
     errors,
   };
 }
 
-function stubNodeVersion(version: string): void {
+const ORIGINAL_NODE_VERSION = process.versions.node;
+
+function stubNodeVersion(version: string | undefined): void {
   Object.defineProperty(process.versions, "node", {
     value: version,
     configurable: true,
   });
 }
 
+function restoreNodeVersion(): void {
+  stubNodeVersion(ORIGINAL_NODE_VERSION);
+}
+
 function npmVersionResult(version: string): { stdout: string; status: number } {
   return { stdout: `${version}\n`, status: 0 };
 }
 
-const ORIGINAL_NODE_VERSION = process.versions.node;
-
-afterEach(() => {
-  stubNodeVersion(ORIGINAL_NODE_VERSION);
-  spawnSyncMock.mockReset();
-  discoverPackagesMock.mockReset();
-  configureTrustMock.mockReset();
-  listTrustMock.mockReset();
-});
-
 describe("CliError", () => {
-  it("when constructed it preserves message and exit code", () => {
-    const err = new CliError("boom", 2);
-    expect(err.message).toBe("boom");
-    expect(err.exitCode).toBe(2);
-    expect(err.name).toBe("CliError");
-    expect(err).toBeInstanceOf(Error);
+  let error: InstanceType<typeof CliError>;
+
+  beforeEach(() => {
+    error = new CliError("boom", 2);
+  });
+
+  it("should preserve the message", () => {
+    expect(error.message).toBe("boom");
+  });
+
+  it("should preserve the exit code", () => {
+    expect(error.exitCode).toBe(2);
+  });
+
+  it("should set the name to CliError", () => {
+    expect(error.name).toBe("CliError");
+  });
+
+  it("should be an instance of Error", () => {
+    expect(error).toBeInstanceOf(Error);
   });
 });
 
 describe("checkNodeVersion", () => {
-  it("when node major is below 24 it throws CliError with exit code 1", () => {
-    stubNodeVersion("22.0.0");
-    expect(() => checkNodeVersion()).toThrowError(CliError);
+  beforeEach(() => {
+    restoreNodeVersion();
   });
 
-  it("when node major is 24 or above it does not throw", () => {
-    stubNodeVersion("24.1.0");
-    expect(() => checkNodeVersion()).not.toThrow();
+  describe("when the node major version is below 24", () => {
+    beforeEach(() => {
+      stubNodeVersion("22.0.0");
+    });
+
+    it("should throw CliError with exit code 1", () => {
+      expect(() => checkNodeVersion()).toThrowError(CliError);
+    });
   });
 
-  it("when node version is unparseable it throws CliError", () => {
-    stubNodeVersion("not-a-version");
-    expect(() => checkNodeVersion()).toThrowError(CliError);
+  describe("when the node major version is 24 or above", () => {
+    beforeEach(() => {
+      stubNodeVersion("24.1.0");
+    });
+
+    it("should not throw", () => {
+      expect(() => checkNodeVersion()).not.toThrow();
+    });
+  });
+
+  describe("when the node version string is unparseable", () => {
+    beforeEach(() => {
+      stubNodeVersion("not-a-version");
+    });
+
+    it("should throw CliError", () => {
+      expect(() => checkNodeVersion()).toThrowError(CliError);
+    });
   });
 });
 
 describe("checkNpmVersion", () => {
-  it("when npm major is at or above 11 it does not throw", () => {
-    spawnSyncMock.mockReturnValueOnce(npmVersionResult("11.5.1"));
-    expect(() => checkNpmVersion()).not.toThrow();
+  describe("when the npm major version is at or above 11", () => {
+    beforeEach(() => {
+      spawnSyncMock.mockReturnValueOnce(npmVersionResult("11.5.1"));
+    });
+
+    it("should not throw", () => {
+      expect(() => checkNpmVersion()).not.toThrow();
+    });
   });
 
-  it("when npm major is below 11 it throws CliError", () => {
-    spawnSyncMock.mockReturnValueOnce(npmVersionResult("10.9.0"));
-    expect(() => checkNpmVersion()).toThrowError(CliError);
+  describe("when the npm major version is below 11", () => {
+    beforeEach(() => {
+      spawnSyncMock.mockReturnValueOnce(npmVersionResult("10.9.0"));
+    });
+
+    it("should throw CliError", () => {
+      expect(() => checkNpmVersion()).toThrowError(CliError);
+    });
   });
 
-  it("when spawnSync surfaces an error it throws a CliError suggesting installation", () => {
-    spawnSyncMock.mockReturnValueOnce({ error: new Error("ENOENT") });
-    expect(() => checkNpmVersion()).toThrowError(/npm >= 11/);
+  describe("when spawnSync surfaces an error", () => {
+    beforeEach(() => {
+      spawnSyncMock.mockReturnValueOnce({ error: new Error("ENOENT") });
+    });
+
+    it("should throw a CliError suggesting installation", () => {
+      expect(() => checkNpmVersion()).toThrowError(/npm >= 11/);
+    });
   });
 
-  it("when spawnSync exits non-zero it throws a CliError suggesting installation", () => {
-    spawnSyncMock.mockReturnValueOnce({ stdout: "", status: 127 });
-    expect(() => checkNpmVersion()).toThrowError(/could not determine npm version/);
+  describe("when spawnSync exits non-zero", () => {
+    beforeEach(() => {
+      spawnSyncMock.mockReturnValueOnce({ stdout: "", status: 127 });
+    });
+
+    it("should throw a CliError noting the version could not be determined", () => {
+      expect(() => checkNpmVersion()).toThrowError(/could not determine npm version/);
+    });
   });
 
-  it("when npm version output is unparseable it throws CliError", () => {
-    spawnSyncMock.mockReturnValueOnce(npmVersionResult("garbage"));
-    expect(() => checkNpmVersion()).toThrowError(CliError);
+  describe("when the npm version output is unparseable", () => {
+    beforeEach(() => {
+      spawnSyncMock.mockReturnValueOnce(npmVersionResult("garbage"));
+    });
+
+    it("should throw CliError", () => {
+      expect(() => checkNpmVersion()).toThrowError(CliError);
+    });
   });
 });
 
 describe("printUsage", () => {
-  it("when called with a logger it logs the help text", () => {
-    const logger = createLogger();
-    printUsage(logger);
-    expect(logger.logs[0]).toContain("npm-trust-cli");
-    expect(logger.logs[0]).toContain("--otp");
+  describe("when called with a logger", () => {
+    let logger: CapturingLogger;
+
+    beforeEach(() => {
+      logger = createLogger();
+      printUsage(logger);
+    });
+
+    it("should log the help text including the binary name", () => {
+      expect(logger.logs[0]).toContain("npm-trust-cli");
+    });
+
+    it("should log the help text including the --otp flag", () => {
+      expect(logger.logs[0]).toContain("--otp");
+    });
   });
 
-  it("when called without a logger it falls back to console.log", () => {
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    printUsage();
-    expect(consoleSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
+  describe("when called without a logger", () => {
+    let consoleSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      printUsage();
+    });
+
+    it("should fall back to console.log", () => {
+      expect(consoleSpy).toHaveBeenCalled();
+    });
   });
 });
 
 describe("parseCliArgs", () => {
-  it("when --help is passed it sets helpRequested", () => {
-    const result = parseCliArgs(["--help"]);
-    expect(result.helpRequested).toBe(true);
+  describe("when --help is passed", () => {
+    it("should set helpRequested to true", () => {
+      expect(parseCliArgs(["--help"]).helpRequested).toBe(true);
+    });
   });
 
-  it("when --packages is passed multiple times it collects all values", () => {
-    const result = parseCliArgs(["--packages", "@x/a", "--packages", "@x/b"]);
-    expect(result.options.packages).toStrictEqual(["@x/a", "@x/b"]);
+  describe("when --packages is passed multiple times", () => {
+    it("should collect every value into options.packages", () => {
+      expect(
+        parseCliArgs(["--packages", "@x/a", "--packages", "@x/b"]).options.packages,
+      ).toStrictEqual(["@x/a", "@x/b"]);
+    });
   });
 
-  it("when positionals are passed without --packages they become packages", () => {
-    const result = parseCliArgs(["pkg1", "pkg2"]);
-    expect(result.options.packages).toStrictEqual(["pkg1", "pkg2"]);
+  describe("when positional args are passed without --packages", () => {
+    it("should treat the positionals as packages", () => {
+      expect(parseCliArgs(["pkg1", "pkg2"]).options.packages).toStrictEqual(["pkg1", "pkg2"]);
+    });
   });
 
-  it("when --packages is set it takes precedence over positionals", () => {
-    const result = parseCliArgs(["--packages", "@x/a", "extra"]);
-    expect(result.options.packages).toStrictEqual(["@x/a"]);
+  describe("when --packages and positionals are both supplied", () => {
+    it("should give --packages precedence over positionals", () => {
+      expect(parseCliArgs(["--packages", "@x/a", "extra"]).options.packages).toStrictEqual([
+        "@x/a",
+      ]);
+    });
   });
 
-  it("when no packages or positionals are given packages is undefined", () => {
-    const result = parseCliArgs(["--scope", "@x"]);
-    expect(result.options.packages).toBeUndefined();
+  describe("when neither packages nor positionals are given", () => {
+    it("should leave options.packages undefined", () => {
+      expect(parseCliArgs(["--scope", "@x"]).options.packages).toBeUndefined();
+    });
   });
 
-  it("when an unknown flag is passed strict mode rejects it", () => {
-    expect(() => parseCliArgs(["--otp-code", "123456"])).toThrow();
+  describe("when an unknown flag is passed", () => {
+    it("should reject in strict mode", () => {
+      expect(() => parseCliArgs(["--otp-code", "123456"])).toThrow();
+    });
   });
 
-  it("when all flags are passed it captures them", () => {
-    const result = parseCliArgs([
-      "--scope",
-      "@x",
-      "--repo",
-      "o/r",
-      "--workflow",
-      "w.yml",
-      "--list",
-      "--dry-run",
-      "--otp",
-      "123456",
-    ]);
-    expect(result.options).toMatchObject({
-      scope: "@x",
-      repo: "o/r",
-      workflow: "w.yml",
-      list: true,
-      dryRun: true,
-      otp: "123456",
+  describe("when every flag is supplied together", () => {
+    let options: ReturnType<typeof parseCliArgs>["options"];
+
+    beforeEach(() => {
+      options = parseCliArgs([
+        "--scope",
+        "@x",
+        "--repo",
+        "o/r",
+        "--workflow",
+        "w.yml",
+        "--list",
+        "--dry-run",
+        "--otp",
+        "123456",
+      ]).options;
+    });
+
+    it("should capture every value", () => {
+      expect(options).toMatchObject({
+        scope: "@x",
+        repo: "o/r",
+        workflow: "w.yml",
+        list: true,
+        dryRun: true,
+        otp: "123456",
+      });
     });
   });
 });
 
 describe("runCli", () => {
   beforeEach(() => {
+    restoreNodeVersion();
     stubNodeVersion("24.0.0");
     spawnSyncMock.mockReturnValue(npmVersionResult("11.5.1"));
   });
 
-  it("when node version check fails it returns the CliError exit code", async () => {
-    stubNodeVersion("22.0.0");
-    const logger = createLogger();
-    const exitCode = await runCli(["--help"], logger);
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toContain("Node.js >= 24");
-  });
+  describe("when the node version check fails", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
 
-  it("when npm version check fails it returns the CliError exit code", async () => {
-    spawnSyncMock.mockReturnValue(npmVersionResult("10.0.0"));
-    const logger = createLogger();
-    const exitCode = await runCli(["--help"], logger);
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toContain("npm >= 11");
-  });
-
-  it("when --help is passed it prints usage and exits 0", async () => {
-    const logger = createLogger();
-    const exitCode = await runCli(["--help"], logger);
-    expect(exitCode).toBe(0);
-    expect(logger.logs[0]).toContain("npm-trust-cli");
-  });
-
-  it("when an unknown flag is passed it returns 1 with a usage hint", async () => {
-    const logger = createLogger();
-    const exitCode = await runCli(["--bogus"], logger);
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toContain("Error:");
-    expect(logger.errors[1]).toContain("--help");
-  });
-
-  it("when --otp shape is invalid it returns 1", async () => {
-    const logger = createLogger();
-    const exitCode = await runCli(["--packages", "@x/a", "--otp", "abc"], logger);
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toContain("--otp must be a 6-8 digit");
-  });
-
-  it("when neither scope nor packages is set it returns 1", async () => {
-    const logger = createLogger();
-    const exitCode = await runCli([], logger);
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toContain("--scope or --packages");
-  });
-
-  it("when discovery returns no packages it returns 1", async () => {
-    discoverPackagesMock.mockResolvedValueOnce([]);
-    const logger = createLogger();
-    const exitCode = await runCli(["--scope", "@x"], logger);
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toBe("No packages found");
-  });
-
-  it("when --scope discovers packages it forwards them to configureTrust", async () => {
-    discoverPackagesMock.mockResolvedValueOnce(["@x/a", "@x/b"]);
-    configureTrustMock.mockReturnValueOnce({
-      configured: 2,
-      already: 0,
-      failed: 0,
-      failedPackages: [],
+    beforeEach(async () => {
+      stubNodeVersion("22.0.0");
+      logger = createLogger();
+      exitCode = await runCli(["--help"], logger);
     });
-    const logger = createLogger();
-    const exitCode = await runCli(
-      ["--scope", "@x", "--repo", "o/r", "--workflow", "w.yml"],
-      logger,
-    );
-    expect(exitCode).toBe(0);
-    expect(configureTrustMock.mock.calls[0]?.[0]).toMatchObject({
-      packages: ["@x/a", "@x/b"],
-    });
-    expect(logger.logs.some((line) => line.includes("Found 2 packages"))).toBe(true);
-  });
 
-  it("when --list is used it calls listTrust and returns 0", async () => {
-    const logger = createLogger();
-    const exitCode = await runCli(["--packages", "@x/a", "--list"], logger);
-    expect(exitCode).toBe(0);
-    expect(listTrustMock).toHaveBeenCalledWith({
-      packages: ["@x/a"],
-      logger,
+    it("should return the CliError exit code (1)", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log a message mentioning Node.js >= 24", () => {
+      expect(logger.errors[0]).toContain("Node.js >= 24");
     });
   });
 
-  it("when configure is requested without --repo it returns 1", async () => {
-    const logger = createLogger();
-    const exitCode = await runCli(["--packages", "@x/a", "--workflow", "w.yml"], logger);
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toContain("--repo");
-  });
+  describe("when the npm version check fails", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
 
-  it("when configure is requested without --workflow it returns 1", async () => {
-    const logger = createLogger();
-    const exitCode = await runCli(["--packages", "@x/a", "--repo", "o/r"], logger);
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toContain("--workflow");
-  });
-
-  it("when --repo shape is invalid it returns 1", async () => {
-    const logger = createLogger();
-    const exitCode = await runCli(
-      ["--packages", "@x/a", "--repo", "no-slash", "--workflow", "w.yml"],
-      logger,
-    );
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toContain("--repo must match");
-  });
-
-  it("when --workflow shape is invalid it returns 1", async () => {
-    const logger = createLogger();
-    const exitCode = await runCli(
-      ["--packages", "@x/a", "--repo", "o/r", "--workflow", "release.txt"],
-      logger,
-    );
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toContain("--workflow must be a .yml");
-  });
-
-  it("when configure succeeds with no failures it returns 0 and forwards options", async () => {
-    configureTrustMock.mockReturnValueOnce({
-      configured: 1,
-      already: 0,
-      failed: 0,
-      failedPackages: [],
+    beforeEach(async () => {
+      spawnSyncMock.mockReturnValue(npmVersionResult("10.0.0"));
+      logger = createLogger();
+      exitCode = await runCli(["--help"], logger);
     });
-    const logger = createLogger();
-    const exitCode = await runCli(
-      ["--packages", "@x/a", "--repo", "o/r", "--workflow", "w.yml", "--otp", "123456"],
-      logger,
-    );
-    expect(exitCode).toBe(0);
-    expect(configureTrustMock).toHaveBeenCalledWith({
-      packages: ["@x/a"],
-      repo: "o/r",
-      workflow: "w.yml",
-      dryRun: false,
-      otp: "123456",
-      logger,
+
+    it("should return exit code 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log a message mentioning npm >= 11", () => {
+      expect(logger.errors[0]).toContain("npm >= 11");
     });
   });
 
-  it("when configure reports failures it returns 1", async () => {
-    configureTrustMock.mockReturnValueOnce({
-      configured: 0,
-      already: 0,
-      failed: 1,
-      failedPackages: ["@x/a"],
-    });
-    const logger = createLogger();
-    const exitCode = await runCli(
-      ["--packages", "@x/a", "--repo", "o/r", "--workflow", "w.yml"],
-      logger,
-    );
-    expect(exitCode).toBe(1);
-  });
+  describe("when --help is passed", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
 
-  it("when --dry-run is set it forwards dryRun=true", async () => {
-    configureTrustMock.mockReturnValueOnce({
-      configured: 0,
-      already: 0,
-      failed: 0,
-      failedPackages: [],
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli(["--help"], logger);
     });
-    await runCli(
-      ["--packages", "@x/a", "--repo", "o/r", "--workflow", "w.yml", "--dry-run"],
-      createLogger(),
-    );
-    expect(configureTrustMock.mock.calls[0]?.[0]).toMatchObject({
-      dryRun: true,
+
+    it("should exit 0", () => {
+      expect(exitCode).toBe(0);
+    });
+
+    it("should print the usage text", () => {
+      expect(logger.logs[0]).toContain("npm-trust-cli");
     });
   });
 
-  it("when no logger is supplied it falls back to console", async () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitCode = await runCli([]);
-    expect(exitCode).toBe(1);
-    expect(consoleErrorSpy).toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
-  });
+  describe("when an unknown flag is passed", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
 
-  it("when an unexpected non-CliError is thrown it is logged and returns exit code 1", async () => {
-    Object.defineProperty(process.versions, "node", {
-      value: undefined,
-      configurable: true,
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli(["--bogus"], logger);
     });
-    const logger = createLogger();
-    const exitCode = await runCli(["--help"], logger);
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toMatch(/^Error: /);
+
+    it("should return exit code 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log an error line", () => {
+      expect(logger.errors[0]).toContain("Error:");
+    });
+
+    it("should hint at --help", () => {
+      expect(logger.errors[1]).toContain("--help");
+    });
   });
 
-  it("when a non-Error value is thrown it is coerced to a string in the message", async () => {
-    stubNodeVersion("24.0.0");
-    spawnSyncMock.mockReturnValueOnce(npmVersionResult("11.5.1"));
-    discoverPackagesMock.mockRejectedValueOnce("plain string failure");
-    const logger = createLogger();
-    const exitCode = await runCli(["--scope", "@x"], logger);
-    expect(exitCode).toBe(1);
-    expect(logger.errors[0]).toBe("Error: plain string failure");
+  describe("when --otp has an invalid shape", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli(["--packages", "@x/a", "--otp", "abc"], logger);
+    });
+
+    it("should return exit code 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log a 6-8 digit validation error", () => {
+      expect(logger.errors[0]).toContain("--otp must be a 6-8 digit");
+    });
+  });
+
+  describe("when neither --scope nor --packages is set", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli([], logger);
+    });
+
+    it("should return exit code 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log a message about --scope or --packages", () => {
+      expect(logger.errors[0]).toContain("--scope or --packages");
+    });
+  });
+
+  describe("when discovery returns zero packages", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      discoverPackagesMock.mockResolvedValueOnce([]);
+      logger = createLogger();
+      exitCode = await runCli(["--scope", "@x"], logger);
+    });
+
+    it("should return exit code 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log 'No packages found'", () => {
+      expect(logger.errors[0]).toBe("No packages found");
+    });
+  });
+
+  describe("when --scope discovers packages", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      discoverPackagesMock.mockResolvedValueOnce(["@x/a", "@x/b"]);
+      configureTrustMock.mockReturnValueOnce({
+        configured: 2,
+        already: 0,
+        failed: 0,
+        failedPackages: [],
+      });
+      logger = createLogger();
+      exitCode = await runCli(["--scope", "@x", "--repo", "o/r", "--workflow", "w.yml"], logger);
+    });
+
+    it("should exit 0", () => {
+      expect(exitCode).toBe(0);
+    });
+
+    it("should forward the discovered packages to configureTrust", () => {
+      expect(configureTrustMock).toHaveBeenCalledWith(
+        expect.objectContaining({ packages: ["@x/a", "@x/b"] }),
+      );
+    });
+
+    it("should log the discovered count", () => {
+      expect(logger.logs.some((line) => line.includes("Found 2 packages"))).toBe(true);
+    });
+  });
+
+  describe("when --list is used", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli(["--packages", "@x/a", "--list"], logger);
+    });
+
+    it("should exit 0", () => {
+      expect(exitCode).toBe(0);
+    });
+
+    it("should call listTrust with the packages and logger", () => {
+      expect(listTrustMock).toHaveBeenCalledWith({
+        packages: ["@x/a"],
+        logger,
+      });
+    });
+  });
+
+  describe("when configure is requested without --repo", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli(["--packages", "@x/a", "--workflow", "w.yml"], logger);
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log a missing --repo error", () => {
+      expect(logger.errors[0]).toContain("--repo");
+    });
+  });
+
+  describe("when configure is requested without --workflow", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli(["--packages", "@x/a", "--repo", "o/r"], logger);
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log a missing --workflow error", () => {
+      expect(logger.errors[0]).toContain("--workflow");
+    });
+  });
+
+  describe("when --repo has an invalid shape", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli(
+        ["--packages", "@x/a", "--repo", "no-slash", "--workflow", "w.yml"],
+        logger,
+      );
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log the --repo validation error", () => {
+      expect(logger.errors[0]).toContain("--repo must match");
+    });
+  });
+
+  describe("when --workflow has an invalid shape", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli(
+        ["--packages", "@x/a", "--repo", "o/r", "--workflow", "release.txt"],
+        logger,
+      );
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log the --workflow validation error", () => {
+      expect(logger.errors[0]).toContain("--workflow must be a .yml");
+    });
+  });
+
+  describe("when configure succeeds with no failures", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      configureTrustMock.mockReturnValueOnce({
+        configured: 1,
+        already: 0,
+        failed: 0,
+        failedPackages: [],
+      });
+      logger = createLogger();
+      exitCode = await runCli(
+        ["--packages", "@x/a", "--repo", "o/r", "--workflow", "w.yml", "--otp", "123456"],
+        logger,
+      );
+    });
+
+    it("should exit 0", () => {
+      expect(exitCode).toBe(0);
+    });
+
+    it("should forward every option to configureTrust", () => {
+      expect(configureTrustMock).toHaveBeenCalledWith({
+        packages: ["@x/a"],
+        repo: "o/r",
+        workflow: "w.yml",
+        dryRun: false,
+        otp: "123456",
+        logger,
+      });
+    });
+  });
+
+  describe("when configure reports failures", () => {
+    let exitCode: number;
+
+    beforeEach(async () => {
+      configureTrustMock.mockReturnValueOnce({
+        configured: 0,
+        already: 0,
+        failed: 1,
+        failedPackages: ["@x/a"],
+      });
+      exitCode = await runCli(
+        ["--packages", "@x/a", "--repo", "o/r", "--workflow", "w.yml"],
+        createLogger(),
+      );
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+  });
+
+  describe("when --dry-run is set", () => {
+    beforeEach(async () => {
+      configureTrustMock.mockReturnValueOnce({
+        configured: 0,
+        already: 0,
+        failed: 0,
+        failedPackages: [],
+      });
+      await runCli(
+        ["--packages", "@x/a", "--repo", "o/r", "--workflow", "w.yml", "--dry-run"],
+        createLogger(),
+      );
+    });
+
+    it("should forward dryRun=true to configureTrust", () => {
+      expect(configureTrustMock).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true }));
+    });
+  });
+
+  describe("when no logger is supplied", () => {
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      exitCode = await runCli([]);
+    });
+
+    it("should exit 1 (no scope/packages)", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should fall back to console.error", () => {
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("when a non-CliError is thrown internally", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      stubNodeVersion(undefined);
+      logger = createLogger();
+      exitCode = await runCli(["--help"], logger);
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log the message prefixed with 'Error: '", () => {
+      expect(logger.errors[0]).toMatch(/^Error: /);
+    });
+  });
+
+  describe("when a non-Error value is thrown", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      stubNodeVersion("24.0.0");
+      spawnSyncMock.mockReturnValueOnce(npmVersionResult("11.5.1"));
+      discoverPackagesMock.mockRejectedValueOnce("plain string failure");
+      logger = createLogger();
+      exitCode = await runCli(["--scope", "@x"], logger);
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should coerce the value into the error log message", () => {
+      expect(logger.errors[0]).toBe("Error: plain string failure");
+    });
   });
 });
