@@ -1,5 +1,8 @@
 import { execSync, spawnSync } from "node:child_process";
+import { dirname, join } from "node:path";
 import type { TrustResult, TrustSummary } from "./interfaces/cli.interface.js";
+
+const NPM_BIN = join(dirname(process.execPath), "npm");
 
 type OutputKind = "already" | "not_published" | "needs_auth" | "error";
 
@@ -24,7 +27,7 @@ function runCaptured(
 ): { readonly output: string; readonly exitCode: number } {
   try {
     const output = execSync(
-      `npm trust github "${pkg}" --repo "${repo}" --file "${workflow}" --yes`,
+      `"${NPM_BIN}" trust github "${pkg}" --repo "${repo}" --file "${workflow}" --yes`,
       {
         encoding: "utf-8",
         env: { ...process.env, npm_config_loglevel: "error" },
@@ -45,7 +48,7 @@ function runCaptured(
 
 function runInteractive(pkg: string, repo: string, workflow: string): number {
   const result = spawnSync(
-    "npm",
+    NPM_BIN,
     ["trust", "github", pkg, "--repo", repo, "--file", workflow, "--yes"],
     {
       env: { ...process.env, npm_config_loglevel: "error" },
@@ -189,7 +192,7 @@ export function listTrust(packages: ReadonlyArray<string>): void {
 
   for (const pkg of packages) {
     try {
-      const output = execSync(`npm trust list "${pkg}"`, {
+      const output = execSync(`"${NPM_BIN}" trust list "${pkg}"`, {
         encoding: "utf-8",
         env: { ...process.env, npm_config_loglevel: "error" },
         stdio: ["pipe", "pipe", "pipe"],
