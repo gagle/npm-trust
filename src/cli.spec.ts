@@ -1,3 +1,4 @@
+import { constants as fsConstants } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const spawnSyncMock = vi.fn();
@@ -6,7 +7,6 @@ const discoverFromCwdMock = vi.fn();
 const findUnconfiguredPackagesMock = vi.fn();
 const configureTrustMock = vi.fn();
 const listTrustMock = vi.fn();
-const accessMock = vi.fn();
 const mkdirMock = vi.fn();
 const copyFileMock = vi.fn();
 
@@ -15,10 +15,13 @@ vi.mock("node:child_process", () => ({
 }));
 
 vi.mock("node:fs/promises", () => ({
-  access: (...args: ReadonlyArray<unknown>) => accessMock(...args),
   mkdir: (...args: ReadonlyArray<unknown>) => mkdirMock(...args),
   copyFile: (...args: ReadonlyArray<unknown>) => copyFileMock(...args),
 }));
+
+function fsError(code: string): Error {
+  return Object.assign(new Error(code), { code });
+}
 
 vi.mock("./discover.js", () => ({
   discoverPackages: (...args: ReadonlyArray<unknown>) => discoverPackagesMock(...args),
@@ -969,7 +972,6 @@ describe("runCli", () => {
     let exitCode: number;
 
     beforeEach(async () => {
-      accessMock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("ENOENT"));
       mkdirMock.mockResolvedValueOnce(undefined);
       copyFileMock.mockResolvedValueOnce(undefined);
       logger = createLogger();
@@ -987,10 +989,11 @@ describe("runCli", () => {
       );
     });
 
-    it("should copy the bundled skill into the target file", () => {
+    it("should copy with the COPYFILE_EXCL flag so overwrites are refused atomically", () => {
       expect(copyFileMock).toHaveBeenCalledWith(
         expect.stringContaining("skills/setup-npm-trust/SKILL.md"),
         expect.stringContaining(".claude/skills/setup-npm-trust/SKILL.md"),
+        fsConstants.COPYFILE_EXCL,
       );
     });
 
@@ -1008,7 +1011,8 @@ describe("runCli", () => {
     let exitCode: number;
 
     beforeEach(async () => {
-      accessMock.mockRejectedValueOnce(new Error("ENOENT"));
+      mkdirMock.mockResolvedValueOnce(undefined);
+      copyFileMock.mockRejectedValueOnce(fsError("ENOENT"));
       logger = createLogger();
       exitCode = await runCli(["--init-skill"], logger);
     });
@@ -1020,11 +1024,6 @@ describe("runCli", () => {
     it("should log a message about the missing bundled skill", () => {
       expect(logger.errors[0]).toContain("bundled skill not found");
     });
-
-    it("should not invoke mkdir or copyFile", () => {
-      expect(mkdirMock).not.toHaveBeenCalled();
-      expect(copyFileMock).not.toHaveBeenCalled();
-    });
   });
 
   describe("when --init-skill finds an existing target file", () => {
@@ -1032,7 +1031,8 @@ describe("runCli", () => {
     let exitCode: number;
 
     beforeEach(async () => {
-      accessMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined);
+      mkdirMock.mockResolvedValueOnce(undefined);
+      copyFileMock.mockRejectedValueOnce(fsError("EEXIST"));
       logger = createLogger();
       exitCode = await runCli(["--init-skill"], logger);
     });
@@ -1044,10 +1044,45 @@ describe("runCli", () => {
     it("should log a message about the existing file", () => {
       expect(logger.errors[0]).toContain("already exists");
     });
+  });
 
-    it("should not invoke mkdir or copyFile", () => {
-      expect(mkdirMock).not.toHaveBeenCalled();
-      expect(copyFileMock).not.toHaveBeenCalled();
+  describe("when --init-skill encounters an unexpected fs error", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      mkdirMock.mockResolvedValueOnce(undefined);
+      copyFileMock.mockRejectedValueOnce(fsError("EACCES"));
+      logger = createLogger();
+      exitCode = await runCli(["--init-skill"], logger);
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log the underlying error code", () => {
+      expect(logger.errors[0]).toBe("Error: EACCES");
+    });
+  });
+
+  describe("when --init-skill encounters a non-Error rejection", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      mkdirMock.mockResolvedValueOnce(undefined);
+      copyFileMock.mockRejectedValueOnce("plain string failure");
+      logger = createLogger();
+      exitCode = await runCli(["--init-skill"], logger);
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should coerce the rejection value into the error log", () => {
+      expect(logger.errors[0]).toBe("Error: plain string failure");
     });
   });
 });

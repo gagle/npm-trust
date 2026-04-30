@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { access, copyFile, mkdir } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { copyFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -194,28 +195,28 @@ async function initSkill(cwd: string, logger: RuntimeLogger): Promise<number> {
   const targetDir = join(cwd, ".claude", "skills", "setup-npm-trust");
   const targetFile = join(targetDir, "SKILL.md");
 
-  try {
-    await access(sourceFile);
-  } catch {
-    logger.error(`Error: bundled skill not found at ${sourceFile}.`);
-    return 1;
-  }
-
-  let targetExists = true;
-  try {
-    await access(targetFile);
-  } catch {
-    targetExists = false;
-  }
-  if (targetExists) {
-    logger.error(`Error: ${targetFile} already exists. Remove it first to refresh.`);
-    return 1;
-  }
-
   await mkdir(targetDir, { recursive: true });
-  await copyFile(sourceFile, targetFile);
+
+  try {
+    await copyFile(sourceFile, targetFile, fsConstants.COPYFILE_EXCL);
+  } catch (err) {
+    if (isFsErrorWithCode(err, "EEXIST")) {
+      logger.error(`Error: ${targetFile} already exists. Remove it first to refresh.`);
+      return 1;
+    }
+    if (isFsErrorWithCode(err, "ENOENT")) {
+      logger.error(`Error: bundled skill not found at ${sourceFile}.`);
+      return 1;
+    }
+    throw err;
+  }
+
   logger.log(`Installed setup-npm-trust skill to ${targetFile}`);
   return 0;
+}
+
+function isFsErrorWithCode(err: unknown, code: string): boolean {
+  return err instanceof Error && "code" in err && err.code === code;
 }
 
 export async function runCli(

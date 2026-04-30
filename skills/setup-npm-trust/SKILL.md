@@ -30,11 +30,14 @@ npm install -D npm-trust-cli
 
 Or rely on `npx`, which will fetch the latest version on demand.
 
-Verify:
+Verify it's locally available without triggering an install:
 
 ```bash
-npx npm-trust-cli --help 2>&1 | head -1
+npx --no-install npm-trust-cli --help 2>&1 | head -1
 ```
+
+If that fails, fall back to `npx npm-trust-cli ...` in every step below — it
+will fetch on first call.
 
 ## Phase 1 — Discover
 
