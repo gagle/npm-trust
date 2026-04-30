@@ -6,9 +6,18 @@ const discoverFromCwdMock = vi.fn();
 const findUnconfiguredPackagesMock = vi.fn();
 const configureTrustMock = vi.fn();
 const listTrustMock = vi.fn();
+const accessMock = vi.fn();
+const mkdirMock = vi.fn();
+const copyFileMock = vi.fn();
 
 vi.mock("node:child_process", () => ({
   spawnSync: (...args: ReadonlyArray<unknown>) => spawnSyncMock(...args),
+}));
+
+vi.mock("node:fs/promises", () => ({
+  access: (...args: ReadonlyArray<unknown>) => accessMock(...args),
+  mkdir: (...args: ReadonlyArray<unknown>) => mkdirMock(...args),
+  copyFile: (...args: ReadonlyArray<unknown>) => copyFileMock(...args),
 }));
 
 vi.mock("./discover.js", () => ({
@@ -294,7 +303,7 @@ describe("runCli", () => {
     beforeEach(async () => {
       stubNodeVersion("22.0.0");
       logger = createLogger();
-      exitCode = await runCli(["--help"], logger);
+      exitCode = await runCli(["--scope", "@x"], logger);
     });
 
     it("should return the CliError exit code (1)", () => {
@@ -313,7 +322,7 @@ describe("runCli", () => {
     beforeEach(async () => {
       spawnSyncMock.mockReturnValue(npmVersionResult("10.0.0"));
       logger = createLogger();
-      exitCode = await runCli(["--help"], logger);
+      exitCode = await runCli(["--scope", "@x"], logger);
     });
 
     it("should return exit code 1", () => {
@@ -838,7 +847,7 @@ describe("runCli", () => {
     beforeEach(async () => {
       stubNodeVersion(undefined);
       logger = createLogger();
-      exitCode = await runCli(["--help"], logger);
+      exitCode = await runCli(["--scope", "@x"], logger);
     });
 
     it("should exit 1", () => {
@@ -952,6 +961,93 @@ describe("runCli", () => {
 
     it("should call listTrust with the filtered list only", () => {
       expect(listTrustMock).toHaveBeenCalledWith(expect.objectContaining({ packages: ["@x/new"] }));
+    });
+  });
+
+  describe("when --init-skill installs into a fresh directory", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      accessMock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("ENOENT"));
+      mkdirMock.mockResolvedValueOnce(undefined);
+      copyFileMock.mockResolvedValueOnce(undefined);
+      logger = createLogger();
+      exitCode = await runCli(["--init-skill"], logger);
+    });
+
+    it("should exit 0", () => {
+      expect(exitCode).toBe(0);
+    });
+
+    it("should create the target directory recursively", () => {
+      expect(mkdirMock).toHaveBeenCalledWith(
+        expect.stringContaining(".claude/skills/setup-npm-trust"),
+        { recursive: true },
+      );
+    });
+
+    it("should copy the bundled skill into the target file", () => {
+      expect(copyFileMock).toHaveBeenCalledWith(
+        expect.stringContaining("skills/setup-npm-trust/SKILL.md"),
+        expect.stringContaining(".claude/skills/setup-npm-trust/SKILL.md"),
+      );
+    });
+
+    it("should log the install destination", () => {
+      expect(logger.logs[0]).toContain("Installed setup-npm-trust skill");
+    });
+
+    it("should not run the npm version check first", () => {
+      expect(spawnSyncMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when --init-skill cannot find the bundled source", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      accessMock.mockRejectedValueOnce(new Error("ENOENT"));
+      logger = createLogger();
+      exitCode = await runCli(["--init-skill"], logger);
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log a message about the missing bundled skill", () => {
+      expect(logger.errors[0]).toContain("bundled skill not found");
+    });
+
+    it("should not invoke mkdir or copyFile", () => {
+      expect(mkdirMock).not.toHaveBeenCalled();
+      expect(copyFileMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when --init-skill finds an existing target file", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      accessMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined);
+      logger = createLogger();
+      exitCode = await runCli(["--init-skill"], logger);
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log a message about the existing file", () => {
+      expect(logger.errors[0]).toContain("already exists");
+    });
+
+    it("should not invoke mkdir or copyFile", () => {
+      expect(mkdirMock).not.toHaveBeenCalled();
+      expect(copyFileMock).not.toHaveBeenCalled();
     });
   });
 });

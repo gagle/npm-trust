@@ -551,7 +551,7 @@ describe("CLI e2e", () => {
 
     beforeEach(async () => {
       result = await runCli({
-        args: ["--help"],
+        args: ["--scope", "@x"],
         env: { FAKE_NPM_VERSION: "10.0.0" },
       });
     });
@@ -562,6 +562,47 @@ describe("CLI e2e", () => {
 
     it("should print the npm-version requirement", () => {
       expect(result.stderr).toContain("npm >= 11");
+    });
+  });
+
+  describe("when --init-skill is invoked", () => {
+    let result: RunCliResult;
+
+    beforeEach(async () => {
+      result = await runCli({
+        args: ["--init-skill"],
+        workspaceFiles: { "README.md": "scratch" },
+      });
+    });
+
+    it("should exit 0", () => {
+      expect(result.exitCode).toBe(0);
+    });
+
+    it("should report the install destination", () => {
+      expect(result.stdout).toContain("Installed setup-npm-trust skill");
+    });
+
+    it("should not invoke npm", () => {
+      expect(result.fakeNpmCalls).toStrictEqual([]);
+    });
+  });
+
+  describe("when --init-skill runs twice in the same directory", () => {
+    let secondResult: RunCliResult;
+
+    beforeEach(async () => {
+      secondResult = await runCli({
+        args: ["--init-skill"],
+        workspaceFiles: {
+          ".claude/skills/setup-npm-trust/SKILL.md": "pre-existing content",
+        },
+      });
+    });
+
+    it("should refuse to overwrite the existing file", () => {
+      expect(secondResult.exitCode).toBe(1);
+      expect(secondResult.stderr).toContain("already exists");
     });
   });
 });

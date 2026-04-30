@@ -136,10 +136,6 @@ Failed packages (publish first, then re-run):
   - @myorg/new-pkg
 ```
 
-## Roadmap
-
-- **Guided wizard (Claude Code skill)** — a skill at `~/projects/ncbijs/.claude/skills/setup-npm-trust/` (separate plan) will orchestrate the full flow: detect → diff → prompt for `npm login` if interactive auth is required → configure → verify.
-
 ## Programmatic usage
 
 `npm-trust-cli` is published as a dual CLI + library. The same package exposes a typed public API for use inside other tools, scripts, or CIs.
@@ -290,6 +286,36 @@ The same entry point used by the `bin` script. Useful for embedding the full CLI
 const code = await runCli(["--scope", "@myorg", "--list"]);
 process.exit(code);
 ```
+
+## Use from a Claude Code agent
+
+`npm-trust-cli` ships with a Claude Code skill that wraps the wizard flow:
+detect packages → diff → walk the user through `npm login` and any required
+publishes → configure → verify. The skill is a single Markdown file with
+plain bash steps; any agent that loads `.claude/skills/` can use it.
+
+The CLI installs it for you:
+
+```bash
+npx npm-trust-cli --init-skill
+```
+
+This copies the bundled `skills/setup-npm-trust/SKILL.md` to
+`./.claude/skills/setup-npm-trust/SKILL.md`. Refuses to overwrite an existing
+file — delete it first if you want to refresh.
+
+If you'd rather copy by hand:
+
+```bash
+mkdir -p .claude/skills
+cp -r node_modules/npm-trust-cli/skills/setup-npm-trust .claude/skills/
+```
+
+In Claude Code, invoke `/setup-npm-trust` (or just describe the task — the
+agent will pick the skill up automatically).
+
+The source lives at [`skills/setup-npm-trust/SKILL.md`](skills/setup-npm-trust/SKILL.md)
+in this repo if you want to read it without installing first.
 
 ## Environment variables
 

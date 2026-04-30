@@ -7,6 +7,7 @@ export interface CliOptions {
   readonly dryRun?: boolean;
   readonly auto?: boolean;
   readonly onlyNew?: boolean;
+  readonly initSkill?: boolean;
 }
 
 export type WorkspaceSource = "pnpm-workspace" | "npm-workspace" | "single-package";

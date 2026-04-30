@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { access, copyFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { findUnconfiguredPackages } from "./diff.js";
 import { discoverPackages } from "./discover.js";
@@ -88,6 +90,7 @@ Options:
   --list                 list current trust status instead of configuring
   --only-new             filter to packages that have no OIDC trust yet or are unpublished
   --dry-run              show what would be done without making changes
+  --init-skill           install the bundled Claude Code skill into ./.claude/skills
   --help                 show this help message
 
 Note: 'npm trust' uses web-based 2FA only. The first call opens a browser
@@ -112,6 +115,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       "dry-run": { type: "boolean", default: false },
       auto: { type: "boolean", default: false },
       "only-new": { type: "boolean", default: false },
+      "init-skill": { type: "boolean", default: false },
       help: { type: "boolean", default: false },
     },
     allowPositionals: true,
@@ -136,6 +140,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       dryRun: Boolean(values["dry-run"]),
       auto: Boolean(values.auto),
       onlyNew: Boolean(values["only-new"]),
+      initSkill: Boolean(values["init-skill"]),
     },
   };
 }
@@ -180,20 +185,57 @@ function describeWorkspaceSource(source: WorkspaceSource): string {
   }
 }
 
+function resolveBundledSkillPath(): string {
+  return fileURLToPath(new URL("../skills/setup-npm-trust/SKILL.md", import.meta.url));
+}
+
+async function initSkill(cwd: string, logger: RuntimeLogger): Promise<number> {
+  const sourceFile = resolveBundledSkillPath();
+  const targetDir = join(cwd, ".claude", "skills", "setup-npm-trust");
+  const targetFile = join(targetDir, "SKILL.md");
+
+  try {
+    await access(sourceFile);
+  } catch {
+    logger.error(`Error: bundled skill not found at ${sourceFile}.`);
+    return 1;
+  }
+
+  let targetExists = true;
+  try {
+    await access(targetFile);
+  } catch {
+    targetExists = false;
+  }
+  if (targetExists) {
+    logger.error(`Error: ${targetFile} already exists. Remove it first to refresh.`);
+    return 1;
+  }
+
+  await mkdir(targetDir, { recursive: true });
+  await copyFile(sourceFile, targetFile);
+  logger.log(`Installed setup-npm-trust skill to ${targetFile}`);
+  return 0;
+}
+
 export async function runCli(
   argv: ReadonlyArray<string>,
   logger: RuntimeLogger = console,
 ): Promise<number> {
   try {
-    checkNodeVersion();
-    checkNpmVersion();
-
     const { options, helpRequested } = parseCliArgs(argv);
 
     if (helpRequested) {
       printUsage(logger);
       return 0;
     }
+
+    if (options.initSkill) {
+      return await initSkill(process.cwd(), logger);
+    }
+
+    checkNodeVersion();
+    checkNpmVersion();
 
     let packages: ReadonlyArray<string>;
     if (options.packages && options.packages.length > 0) {
