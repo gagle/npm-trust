@@ -202,19 +202,22 @@ if (detected !== null) {
 
 ### `checkPackageStatuses(packages)` and `findUnconfiguredPackages(packages)`
 
-Both call `npm trust list <pkg>` (to detect existing OIDC trust) and `npm view <pkg>` (to detect publication) for each package.
+Both call three npm commands per package — `npm trust list <pkg>` (existing trust record), `npm view <pkg> name` (publication), and `npm view <pkg> dist.attestations.url` (SLSA provenance attestation).
 
-`checkPackageStatuses` returns the full status of every package — useful for orchestration code (e.g. a wizard) that needs to differentiate "unpublished" from "missing trust":
+`checkPackageStatuses` returns the full status of every package — useful for orchestration code (e.g. a wizard) that needs to differentiate "unpublished" from "missing trust" from "trusted via the npm web UI":
 
 ```ts
 interface PackageStatus {
   readonly pkg: string;
   readonly trustConfigured: boolean;
   readonly published: boolean;
+  readonly hasProvenance: boolean;
 }
 ```
 
-`findUnconfiguredPackages` is a convenience filter over the same data — keeps any package that lacks trust **or** isn't yet published.
+`hasProvenance` cross-checks the registry for a SLSA provenance attestation on the latest version. It catches the common case where Trusted Publishing was set up via npm's web UI rather than the CLI — `npm trust list` returns empty in that scenario, but the package's publishes are still going through OIDC.
+
+`findUnconfiguredPackages` is a convenience filter over the same data. A package is **kept** (i.e. flagged as needing work) only when it lacks **both** an explicit trust record and a provenance attestation, **or** isn't yet published. Concretely: kept if `!((trustConfigured || hasProvenance) && published)`.
 
 ```ts
 const statuses = checkPackageStatuses(["@myorg/foo", "@myorg/new"]);

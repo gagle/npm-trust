@@ -2,10 +2,11 @@
 name: setup-npm-trust
 description: >
   Guided wizard to enable or extend npm OIDC Trusted Publishing across the
-  packages in the current repo. Detects the workspace shape via npm-trust-cli,
-  shows current trust state, filters to packages still needing setup, walks the
-  user through any required manual steps (`npm login`, web 2FA, `npm publish`),
-  runs the configuration, and verifies the result.
+  packages in the current repo. Resolves the right `npm-trust-cli` invocation,
+  detects the workspace shape, shows current trust state, filters to packages
+  still needing setup, walks the user through any required manual steps
+  (`npm login`, web 2FA, `npm publish`), runs the configuration, and verifies
+  the result.
 ---
 
 # Setup npm-trust
@@ -20,34 +21,56 @@ gather inputs → confirm → handle manual steps → execute → verify.
 - Incremental setup after publishing one or more new packages.
 - Auditing — checking which packages are or aren't trust-configured.
 
-## Prerequisites
+## Pre-flight — resolve the CLI invocation
 
-`npm-trust-cli` must be reachable. Either install it as a devDependency:
+Different hosts reach `npm-trust-cli` differently (source checkout, devDep,
+global install, npx fetch). Decide which to use **once**, then use the same
+invocation in every step below. Try in this order and stop at the first match:
+
+1. **Source checkout.** If `./bin/npm-trust-cli.js` exists AND
+   `node -p "require('./package.json').name"` prints `npm-trust-cli`, use:
+   ```
+   <CLI> = node ./bin/npm-trust-cli.js
+   ```
+2. **Local devDependency.** If `./node_modules/.bin/npm-trust-cli` is
+   executable:
+   ```
+   <CLI> = ./node_modules/.bin/npm-trust-cli
+   ```
+3. **Global install.** If `command -v npm-trust-cli` succeeds:
+   ```
+   <CLI> = npm-trust-cli
+   ```
+4. **Registry fetch (last resort).** Otherwise fall back to:
+   ```
+   <CLI> = npx -y npm-trust-cli@latest
+   ```
+
+If your shell's `npx` form rejects the package (some npm 11 setups require
+`npm exec --` instead), substitute `npm exec -- npm-trust-cli@latest` for
+the npx fallback.
+
+Use the chosen invocation in **every** subsequent step. Below, `<CLI>` is the
+placeholder — replace mentally.
+
+### Verify the resolved version supports the flags this skill uses
 
 ```bash
-npm install -D npm-trust-cli
+<CLI> --help 2>/dev/null | grep -q -- "--auto" \
+  && echo "ok" \
+  || echo "TOO_OLD"
 ```
 
-Or rely on `npx`, which will fetch the latest version on demand.
-
-Verify it's locally available without triggering an install:
-
-```bash
-npx --no-install npm-trust-cli --help 2>&1 | head -1
-```
-
-If that fails, fall back to `npx npm-trust-cli ...` in every step below — it
-will fetch on first call.
+If the result is `TOO_OLD`, the resolved binary predates `--auto` (added in
+v0.2.0). **Stop** and ask the user to upgrade with
+`npm i -g npm-trust-cli@latest` (or remove the cached version that resolved).
 
 ## Phase 1 — Discover
 
 ### 1. Detect the workspace shape
 
-Run a dry-run `--auto` to confirm the CLI can identify packages in the current
-directory:
-
 ```bash
-npx npm-trust-cli --auto --dry-run --repo placeholder/x --workflow placeholder.yml 2>&1 | head -10
+<CLI> --auto --dry-run --repo placeholder/x --workflow placeholder.yml 2>&1 | head -10
 ```
 
 Expected first stdout line:
@@ -58,8 +81,8 @@ Expected first stdout line:
 
 If the output is `Error: --auto could not detect…`, **stop** and ask the user
 whether to use `--scope <scope>` (org-based registry discovery) or
-`--packages <names...>` (explicit list) instead. Use the chosen flag in every
-subsequent step.
+`--packages <names...>` (explicit list) instead. Use the chosen source flag
+in every subsequent step.
 
 ### 2. Resolve the GitHub repo
 
@@ -83,21 +106,31 @@ performs the npm publish.
 ### 4. Show current trust state
 
 ```bash
-npx npm-trust-cli --auto --list
+<CLI> --auto --list
 ```
 
 Per-package output: each line shows the package name and either its existing
 trust configuration or `(no trust configured)`.
 
+> **Note on cross-checking.** `npm trust list` (which the CLI calls under the
+> hood) sometimes reports `(no trust configured)` even when OIDC publishing
+> demonstrably works — this happens when Trusted Publishing was set up via
+> npm's web UI rather than the CLI, or when the CLI's auth state is stale.
+> Recent versions of `npm-trust-cli` cross-check via `npm view <pkg>
+> dist.attestations` to flag this; if you see a `(provenance present)` marker
+> in the output, treat the package as effectively configured even if the
+> trust line is empty.
+
 ### 5. Identify what still needs work
 
 ```bash
-npx npm-trust-cli --auto --only-new --list
+<CLI> --auto --only-new --list
 ```
 
-The filter calls `npm trust list` and `npm view` per package and keeps the
-ones that lack trust **or** aren't yet published. The result is the precise
-working set for this run.
+The filter calls `npm trust list`, `npm view <pkg>`, and (in v0.3.0+)
+`npm view <pkg> dist.attestations` per package. It keeps packages that lack
+trust **and** lack provenance, or aren't yet published. The result is the
+precise working set for this run.
 
 ### 6. Confirm with user
 
@@ -118,34 +151,51 @@ Pause and wait for the user to confirm before continuing.
 
 ## Phase 2 — Execute
 
-### 7. Pre-auth notice
+### 7. Auth gate (hard)
 
-Tell the user, before any configure call:
-
-> The first `npm trust github` call will open a browser for npm
-> authentication. On the npm site, tick **"skip 2FA for the next 5 minutes"**
-> so the remaining packages finish without further prompts.
-
-Wait for acknowledgement.
-
-If the user hasn't run `npm login` recently, suggest:
+Run:
 
 ```bash
 npm whoami
 ```
 
-If that fails, ask the user to run `npm login` first, then come back.
+If it **fails or prints nothing**, **STOP**. Tell the user:
 
-### 8. Configure trust
+> You're not logged in to npm. Run `npm login` in another terminal, then
+> re-run this skill from Step 1.
+
+Do not proceed to the configure step until `npm whoami` succeeds. The
+configure step uses web 2FA which won't work without an authenticated
+session.
+
+Once logged in, surface the pre-auth notice:
+
+> The first `npm trust github` call will open a browser for npm
+> authentication. On the npm site, tick **"skip 2FA for the next 5 minutes"**
+> so the remaining packages finish without further prompts.
+
+### 8. Pre-flight dry-run
+
+Before burning a 2FA round-trip on a typo, validate the args:
 
 ```bash
-npx npm-trust-cli --auto --only-new --repo <owner/repo> --workflow <file>
+<CLI> --auto --only-new --dry-run --repo <owner/repo> --workflow <file>
+```
+
+If this errors (bad repo regex, invalid workflow extension, source detection
+failure), **stop and surface the error** — do not proceed to the actual
+configure call.
+
+### 9. Configure trust
+
+```bash
+<CLI> --auto --only-new --repo <owner/repo> --workflow <file>
 ```
 
 The CLI reports per-package status and a final summary
 (`Done: X configured, Y already set, Z failed`).
 
-### 9. Handle unpublished packages
+### 10. Handle unpublished packages
 
 If the summary lists failed packages with the suffix `not published yet`:
 
@@ -160,16 +210,16 @@ If the summary lists failed packages with the suffix `not published yet`:
 
 Do not retry automatically; publishing is a deliberate user action.
 
-### 10. Verify
+### 11. Verify
 
 ```bash
-npx npm-trust-cli --auto --list
+<CLI> --auto --list
 ```
 
 All previously-untrusted-but-published packages should now show trust
 information (the workflow file path) instead of `(no trust configured)`.
 
-### 11. Report
+### 12. Report
 
 Print a final summary:
 
@@ -193,3 +243,6 @@ If `Z > 0`, remind the user that those packages still need publishing.
 - The wizard never runs destructive commands; everything it executes is
   read-only or `npm trust github` (which is idempotent — re-running on an
   already-configured package returns "already configured").
+- If a future `--doctor` flag is available on the resolved CLI, the entire
+  Pre-flight + Phase 1 sequence collapses to a single `<CLI> --doctor --json`
+  call. See the project's roadmap.

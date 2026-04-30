@@ -27,6 +27,10 @@ describe("bundled setup-npm-trust skill", () => {
   });
 
   describe("structure", () => {
+    it("should declare a Pre-flight section that resolves the CLI invocation", () => {
+      expect(content).toContain("## Pre-flight — resolve the CLI invocation");
+    });
+
     it("should declare a Phase 1 — Discover section", () => {
       expect(content).toContain("## Phase 1 — Discover");
     });
@@ -41,12 +45,35 @@ describe("bundled setup-npm-trust skill", () => {
   });
 
   describe("package-manager neutrality", () => {
-    it("should invoke the CLI through npx in every example", () => {
-      expect(content).toContain("npx npm-trust-cli");
+    it("should use the <CLI> placeholder in commands so the host can resolve its own invocation", () => {
+      expect(content).toContain("<CLI> --auto");
+    });
+
+    it("should mention `node ./bin/npm-trust-cli.js` as a source-checkout fallback", () => {
+      expect(content).toContain("node ./bin/npm-trust-cli.js");
+    });
+
+    it("should mention an npx fallback for registry fetch", () => {
+      expect(content).toContain("npx -y npm-trust-cli@latest");
     });
 
     it("should not assume pnpm by hardcoding pnpm exec", () => {
       expect(content).not.toContain("pnpm exec npm-trust-cli");
+    });
+  });
+
+  describe("safety", () => {
+    it("should include a hard `npm whoami` gate before the configure step", () => {
+      expect(content).toContain("npm whoami");
+      expect(content).toContain("STOP");
+    });
+
+    it("should include a pre-flight dry-run before the actual configure call", () => {
+      expect(content).toContain("Pre-flight dry-run");
+    });
+
+    it("should verify the resolved CLI version supports --auto", () => {
+      expect(content).toContain("Verify the resolved version supports the flags");
     });
   });
 });

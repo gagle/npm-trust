@@ -21,6 +21,7 @@ export interface PackageStatus {
   readonly pkg: string;
   readonly trustConfigured: boolean;
   readonly published: boolean;
+  readonly hasProvenance: boolean;
 }
 
 export type TrustResult = "configured" | "already" | "not_published" | "auth_failed" | "error";

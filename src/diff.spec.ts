@@ -29,19 +29,36 @@ function viewResponse(status: number, stdout = ""): { stdout: string; status: nu
   return { stdout, status };
 }
 
+function provenanceAbsent(): { stdout: string; status: number } {
+  return { stdout: "", status: 0 };
+}
+
+function provenancePresent(): { stdout: string; status: number } {
+  return {
+    stdout: "https://registry.npmjs.org/-/npm/v1/attestations/x@1.0.0\n",
+    status: 0,
+  };
+}
+
 describe("checkPackageStatuses", () => {
-  describe("when a package has trust configured and is published", () => {
+  describe("when a package has trust configured, is published, and lacks provenance", () => {
     let result: ReadonlyArray<PackageStatus>;
 
     beforeEach(() => {
       spawnSyncMock
         .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
-        .mockReturnValueOnce(viewResponse(0, "@x/a"));
+        .mockReturnValueOnce(viewResponse(0, "@x/a"))
+        .mockReturnValueOnce(provenanceAbsent());
       result = checkPackageStatuses(["@x/a"]);
     });
 
-    it("should report trustConfigured true and published true", () => {
-      expect(result[0]).toStrictEqual({ pkg: "@x/a", trustConfigured: true, published: true });
+    it("should report every signal accurately", () => {
+      expect(result[0]).toStrictEqual({
+        pkg: "@x/a",
+        trustConfigured: true,
+        published: true,
+        hasProvenance: false,
+      });
     });
   });
 
@@ -51,7 +68,8 @@ describe("checkPackageStatuses", () => {
     beforeEach(() => {
       spawnSyncMock
         .mockReturnValueOnce(trustListResponse("", 0))
-        .mockReturnValueOnce(viewResponse(0));
+        .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenanceAbsent());
       result = checkPackageStatuses(["@x/a"]);
     });
 
@@ -66,7 +84,8 @@ describe("checkPackageStatuses", () => {
     beforeEach(() => {
       spawnSyncMock
         .mockReturnValueOnce({ stdout: "boom", status: 1 })
-        .mockReturnValueOnce(viewResponse(0));
+        .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenanceAbsent());
       result = checkPackageStatuses(["@x/a"]);
     });
 
@@ -79,7 +98,10 @@ describe("checkPackageStatuses", () => {
     let result: ReadonlyArray<PackageStatus>;
 
     beforeEach(() => {
-      spawnSyncMock.mockReturnValueOnce({ status: 0 }).mockReturnValueOnce(viewResponse(0));
+      spawnSyncMock
+        .mockReturnValueOnce({ status: 0 })
+        .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenanceAbsent());
       result = checkPackageStatuses(["@x/a"]);
     });
 
@@ -94,12 +116,66 @@ describe("checkPackageStatuses", () => {
     beforeEach(() => {
       spawnSyncMock
         .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
-        .mockReturnValueOnce(viewResponse(1, "npm error 404"));
+        .mockReturnValueOnce(viewResponse(1, "npm error 404"))
+        .mockReturnValueOnce(provenanceAbsent());
       result = checkPackageStatuses(["@x/new"]);
     });
 
     it("should report published false", () => {
       expect(result[0]?.published).toBe(false);
+    });
+  });
+
+  describe("when the registry has a SLSA provenance attestation", () => {
+    let result: ReadonlyArray<PackageStatus>;
+
+    beforeEach(() => {
+      spawnSyncMock
+        .mockReturnValueOnce(trustListResponse("", 0))
+        .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenancePresent());
+      result = checkPackageStatuses(["@x/web-trusted"]);
+    });
+
+    it("should report hasProvenance true even when trustConfigured is false", () => {
+      expect(result[0]).toStrictEqual({
+        pkg: "@x/web-trusted",
+        trustConfigured: false,
+        published: true,
+        hasProvenance: true,
+      });
+    });
+  });
+
+  describe("when the provenance lookup exits non-zero", () => {
+    let result: ReadonlyArray<PackageStatus>;
+
+    beforeEach(() => {
+      spawnSyncMock
+        .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
+        .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce({ stdout: "", status: 1 });
+      result = checkPackageStatuses(["@x/a"]);
+    });
+
+    it("should report hasProvenance false", () => {
+      expect(result[0]?.hasProvenance).toBe(false);
+    });
+  });
+
+  describe("when the provenance lookup returns no stdout field", () => {
+    let result: ReadonlyArray<PackageStatus>;
+
+    beforeEach(() => {
+      spawnSyncMock
+        .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
+        .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce({ status: 0 });
+      result = checkPackageStatuses(["@x/a"]);
+    });
+
+    it("should report hasProvenance false", () => {
+      expect(result[0]?.hasProvenance).toBe(false);
     });
   });
 
@@ -110,8 +186,10 @@ describe("checkPackageStatuses", () => {
       spawnSyncMock
         .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
         .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenanceAbsent())
         .mockReturnValueOnce(trustListResponse("", 0))
-        .mockReturnValueOnce(viewResponse(0));
+        .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenanceAbsent());
       result = checkPackageStatuses(["@x/a", "@x/b"]);
     });
 
@@ -119,8 +197,8 @@ describe("checkPackageStatuses", () => {
       expect(result.map((status) => status.pkg)).toStrictEqual(["@x/a", "@x/b"]);
     });
 
-    it("should call npm twice per package (trust list + view)", () => {
-      expect(spawnSyncMock).toHaveBeenCalledTimes(4);
+    it("should call npm three times per package (trust list + view name + view attestations)", () => {
+      expect(spawnSyncMock).toHaveBeenCalledTimes(6);
     });
   });
 
@@ -149,8 +227,10 @@ describe("findUnconfiguredPackages", () => {
       spawnSyncMock
         .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
         .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenanceAbsent())
         .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
-        .mockReturnValueOnce(viewResponse(0));
+        .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenanceAbsent());
       result = findUnconfiguredPackages(["@x/a", "@x/b"]);
     });
 
@@ -166,8 +246,10 @@ describe("findUnconfiguredPackages", () => {
       spawnSyncMock
         .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
         .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenanceAbsent())
         .mockReturnValueOnce(trustListResponse("", 0))
-        .mockReturnValueOnce(viewResponse(0));
+        .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenanceAbsent());
       result = findUnconfiguredPackages(["@x/configured", "@x/missing"]);
     });
 
@@ -183,8 +265,10 @@ describe("findUnconfiguredPackages", () => {
       spawnSyncMock
         .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
         .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenanceAbsent())
         .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
-        .mockReturnValueOnce(viewResponse(1));
+        .mockReturnValueOnce(viewResponse(1))
+        .mockReturnValueOnce(provenanceAbsent());
       result = findUnconfiguredPackages(["@x/old", "@x/unpublished"]);
     });
 
@@ -199,7 +283,8 @@ describe("findUnconfiguredPackages", () => {
     beforeEach(() => {
       spawnSyncMock
         .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
-        .mockReturnValueOnce(viewResponse(1));
+        .mockReturnValueOnce(viewResponse(1))
+        .mockReturnValueOnce(provenanceAbsent());
       result = findUnconfiguredPackages(["@x/configured-but-unpublished"]);
     });
 
@@ -208,13 +293,14 @@ describe("findUnconfiguredPackages", () => {
     });
   });
 
-  describe("when both signals are missing", () => {
+  describe("when both trust-list and provenance signals are missing", () => {
     let result: ReadonlyArray<string>;
 
     beforeEach(() => {
       spawnSyncMock
         .mockReturnValueOnce(trustListResponse("", 0))
-        .mockReturnValueOnce(viewResponse(1));
+        .mockReturnValueOnce(viewResponse(1))
+        .mockReturnValueOnce(provenanceAbsent());
       result = findUnconfiguredPackages(["@x/brand-new"]);
     });
 
@@ -223,18 +309,36 @@ describe("findUnconfiguredPackages", () => {
     });
   });
 
+  describe("when a package has SLSA provenance but no explicit trust record", () => {
+    let result: ReadonlyArray<string>;
+
+    beforeEach(() => {
+      spawnSyncMock
+        .mockReturnValueOnce(trustListResponse("", 0))
+        .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenancePresent());
+      result = findUnconfiguredPackages(["@x/web-trusted"]);
+    });
+
+    it("should treat the package as effectively configured and drop it from the filter", () => {
+      expect(result).toStrictEqual([]);
+    });
+  });
+
   describe("when called", () => {
     beforeEach(() => {
       spawnSyncMock
         .mockReturnValueOnce(trustListResponse("github:o/r release.yml"))
-        .mockReturnValueOnce(viewResponse(0));
+        .mockReturnValueOnce(viewResponse(0))
+        .mockReturnValueOnce(provenanceAbsent());
       findUnconfiguredPackages(["@x/a"]);
     });
 
-    it("should invoke npm trust list before npm view", () => {
+    it("should invoke npm trust list first, then npm view name, then npm view attestations", () => {
       const calls = recordedCalls();
       expect(calls[0]?.args[0]).toBe("trust");
-      expect(calls[1]?.args[0]).toBe("view");
+      expect(calls[1]?.args.slice(0, 3)).toStrictEqual(["view", "@x/a", "name"]);
+      expect(calls[2]?.args.slice(0, 3)).toStrictEqual(["view", "@x/a", "dist.attestations.url"]);
     });
   });
 });

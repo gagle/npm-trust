@@ -31,6 +31,18 @@ function isPublished(pkg: string): boolean {
   return result.status === 0;
 }
 
+function hasProvenance(pkg: string): boolean {
+  const result = spawnSync(resolveNpmBin(), ["view", pkg, "dist.attestations.url"], {
+    encoding: "utf-8",
+    env: buildSpawnEnv(),
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  if (result.status !== 0) {
+    return false;
+  }
+  return (result.stdout ?? "").trim() !== "";
+}
+
 export function checkPackageStatuses(
   packages: ReadonlyArray<string>,
 ): ReadonlyArray<PackageStatus> {
@@ -38,11 +50,12 @@ export function checkPackageStatuses(
     pkg,
     trustConfigured: isTrustConfigured(pkg),
     published: isPublished(pkg),
+    hasProvenance: hasProvenance(pkg),
   }));
 }
 
 export function findUnconfiguredPackages(packages: ReadonlyArray<string>): ReadonlyArray<string> {
   return checkPackageStatuses(packages)
-    .filter((status) => !(status.trustConfigured && status.published))
+    .filter((status) => !((status.trustConfigured || status.hasProvenance) && status.published))
     .map((status) => status.pkg);
 }
