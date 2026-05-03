@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const CLI_ENTRY = join(ROOT, "bin", "npm-trust-cli.js");
+const CLI_ENTRY = join(ROOT, "bin", "npm-trust.js");
 const FAKE_NPM = join(ROOT, "e2e", "fixtures", "fake-npm", "npm");
 
 export interface FakeNpmResponse {
@@ -35,7 +35,7 @@ export interface RunCliResult {
 }
 
 export async function runCli(options: RunCliOptions): Promise<RunCliResult> {
-  const tmp = mkdtempSync(join(tmpdir(), "npm-trust-cli-e2e-"));
+  const tmp = mkdtempSync(join(tmpdir(), "npm-trust-e2e-"));
   try {
     const scriptPath = join(tmp, "script.json");
     const logPath = join(tmp, "log.jsonl");
@@ -58,11 +58,11 @@ export async function runCli(options: RunCliOptions): Promise<RunCliResult> {
 
     const env: ExecaOptions["env"] = {
       ...process.env,
-      NPM_TRUST_CLI_NPM: FAKE_NPM,
+      NPM_TRUST_NPM: FAKE_NPM,
       FAKE_NPM_SCRIPT: scriptPath,
       FAKE_NPM_LOG: logPath,
       FAKE_NPM_COUNTER: counterPath,
-      ...(options.registryUrl ? { NPM_TRUST_CLI_REGISTRY: options.registryUrl } : {}),
+      ...(options.registryUrl ? { NPM_TRUST_REGISTRY: options.registryUrl } : {}),
       ...options.env,
     };
 

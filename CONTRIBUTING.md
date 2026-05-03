@@ -1,8 +1,8 @@
-# Contributing to npm-trust-cli
+# Contributing to npm-trust
 
 This project is developed and maintained entirely through AI-assisted development using [Claude Code](https://docs.anthropic.com/en/docs/claude-code). All code changes -- features, bug fixes, refactoring, tests, and documentation -- are generated, reviewed, and verified by Claude.
 
-**Pull requests are disabled.** Contributors cannot submit code directly. To request a change, [open an issue](https://github.com/gagle/npm-trust-cli/issues) or start a [discussion](https://github.com/gagle/npm-trust-cli/discussions); the maintainer picks it up and implements it through Claude Code following the conventions in `CLAUDE.md` and `.claude/`.
+**Pull requests are disabled.** Contributors cannot submit code directly. To request a change, [open an issue](https://github.com/gagle/npm-trust/issues) or start a [discussion](https://github.com/gagle/npm-trust/discussions); the maintainer picks it up and implements it through Claude Code following the conventions in `CLAUDE.md` and `.claude/`.
 
 ## Why
 
@@ -10,8 +10,8 @@ This is an intentional design decision, not a gimmick. AI-generated code with st
 
 ## How to request a change
 
-1. **[Open an issue](https://github.com/gagle/npm-trust-cli/issues)** for bugs, concrete features, or specific improvements -- include expected behavior and reproduction steps where relevant.
-2. **[Open a discussion](https://github.com/gagle/npm-trust-cli/discussions)** for open-ended requests, design input, or trade-off questions.
+1. **[Open an issue](https://github.com/gagle/npm-trust/issues)** for bugs, concrete features, or specific improvements -- include expected behavior and reproduction steps where relevant.
+2. **[Open a discussion](https://github.com/gagle/npm-trust/discussions)** for open-ended requests, design input, or trade-off questions.
 3. The maintainer triages the request and, when accepted, implements it via Claude Code. The resulting commits are linked back to your issue or discussion.
 
 ## What Claude enforces automatically
@@ -26,4 +26,4 @@ This is an intentional design decision, not a gimmick. AI-generated code with st
 
 ## Questions
 
-Open a [GitHub Discussion](https://github.com/gagle/npm-trust-cli/discussions) for questions about the project, its architecture, or this contribution model.
+Open a [GitHub Discussion](https://github.com/gagle/npm-trust/discussions) for questions about the project, its architecture, or this contribution model.

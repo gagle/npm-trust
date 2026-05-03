@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.6.0](https://github.com/gagle/npm-trust/compare/v0.5.0...v0.6.0) (2026-05-03)
+
+### Renamed: `npm-trust-cli` → `npm-trust`
+
+This package was renamed from `npm-trust-cli` to `npm-trust`. The new name aligns with modern Node CLI naming (no `-cli` suffix; cf. `eslint`, `prettier`, `vitest`, `tsdown`). The hyphen visually distinguishes the wrapper from the underlying `npm trust github` subcommand.
+
+**To migrate**:
+
+```bash
+pnpm remove npm-trust-cli
+pnpm add -D npm-trust
+```
+
+Update any script bodies from `npm-trust-cli ...` to `npm-trust ...`. The bin name is now `npm-trust`. The library import is `import { configureTrust, ... } from 'npm-trust'`.
+
+The legacy `npm-trust-cli@^0.5.0` package is deprecated with a pointer to this package.
+
+### Breaking Changes
+
+- `--init-skill` now requires a skill name as a positional value: `npm-trust --init-skill setup-npm-trust`. The bare `--init-skill` form (which used to install `setup-npm-trust` by default) now exits 1 with a list of available skills. Clean break, no fallback.
+
+### Features
+
+- new doctor check: `REGISTRY_PROVENANCE_CONFLICT` (warn-level) fires when `package.json#publishConfig.registry` points at a non-public-npm URL **and** `publishConfig.provenance` is `true`. The combo can't work — Sigstore signing only operates on the public npm registry. Doctor surfaces a clear remedy: either remove `provenance: true` or change `registry` back to public npm.
+- `package.json#publishConfig` is now the canonical source of `access` / `provenance` settings (set to `{ access: "public", provenance: true }`). The CI workflow's publish step is reduced to `pnpm publish --no-git-checks` since pnpm reads `publishConfig` automatically — no redundant `--access`/`--provenance` flags.
+
+### Refactor
+
+- bundled `setup-npm-trust` skill, README, CLAUDE.md, all docs and source files updated to reflect the new package name and the new bin shim path (`bin/npm-trust.js`).
+- env vars renamed: `NPM_TRUST_CLI_NPM` → `NPM_TRUST_NPM`, `NPM_TRUST_CLI_REGISTRY` → `NPM_TRUST_REGISTRY`.
+
+### Note on this release
+
+v0.6.0 is a **bootstrap publish** under the new package name. Because OIDC Trusted Publishing requires the package to exist before trust can be configured, this release was published locally via classic 2FA without SLSA provenance. Trust was configured immediately after, so **v0.6.1 onward ships from tag-triggered CI with provenance** like every other release.
+
 ## [0.5.0](https://github.com/gagle/npm-trust-cli/compare/v0.4.0...v0.5.0) (2026-04-30)
 
 ### Features

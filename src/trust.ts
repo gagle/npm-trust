@@ -9,7 +9,7 @@ import type {
 } from "./interfaces/cli.interface.js";
 
 function resolveNpmBin(): string {
-  return process.env.NPM_TRUST_CLI_NPM ?? join(dirname(process.execPath), "npm");
+  return process.env.NPM_TRUST_NPM ?? join(dirname(process.execPath), "npm");
 }
 
 const CONSOLE_LOGGER: Logger = {

@@ -1,21 +1,25 @@
-<h1 align="center">npm-trust-cli</h1>
+<h1 align="center">npm-trust</h1>
 
 <p align="center">
   Bulk-configure npm OIDC Trusted Publishing for every package in your npm scope.
 </p>
 
 <p align="center">
-  <a href="https://github.com/gagle/npm-trust-cli/blob/main/LICENSE"><img src="https://img.shields.io/github/license/gagle/npm-trust-cli" alt="license" /></a>
-  <a href="https://www.npmjs.com/package/npm-trust-cli"><img src="https://img.shields.io/npm/v/npm-trust-cli" alt="npm version" /></a>
-  <a href="https://www.npmjs.com/package/npm-trust-cli"><img src="https://img.shields.io/npm/dm/npm-trust-cli" alt="npm downloads" /></a>
-  <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/npm-trust-cli" alt="node version" /></a>
+  <em>Note: this CLI is <code>npm-trust</code> (hyphenated). It wraps the underlying <code>npm trust github</code> subcommand (with a space) — they are different things.</em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/gagle/npm-trust/blob/main/LICENSE"><img src="https://img.shields.io/github/license/gagle/npm-trust" alt="license" /></a>
+  <a href="https://www.npmjs.com/package/npm-trust"><img src="https://img.shields.io/npm/v/npm-trust" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/npm-trust"><img src="https://img.shields.io/npm/dm/npm-trust" alt="npm downloads" /></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/npm-trust" alt="node version" /></a>
 </p>
 
 ---
 
 > **Built for LLM consumption.** Every entry point is shaped for an agent to drive end to end:
 >
-> - A bundled **Claude Code skill** (`npx npm-trust-cli --init-skill`) that walks an agent through detect → diff → manual auth pauses → configure → verify, with no per-project setup.
+> - A bundled **Claude Code skill** (`npx npm-trust --init-skill`) that walks an agent through detect → diff → manual auth pauses → configure → verify, with no per-project setup.
 > - **Filesystem auto-detection** (`--auto`) that removes the "what packages live here?" guesswork — works for pnpm/npm/yarn workspaces and single-package repos, picks up scope from package names automatically.
 > - **`--only-new`** for incremental setup so the agent doesn't waste calls re-checking packages that are already trust-configured.
 > - A **typed programmatic API** alongside the CLI (`discoverFromCwd`, `checkPackageStatuses`, `findUnconfiguredPackages`, `configureTrust`, …) so an agent can choose between spawning the binary or importing the library — same primitives, same data shapes.
@@ -27,7 +31,7 @@ npm OIDC Trusted Publishing lets GitHub Actions publish packages without secrets
 
 ## The solution
 
-`npm-trust-cli` bulk-configures OIDC Trusted Publishing for every package in your npm scope from a single command. It auto-discovers all published packages in your org, handles npm 2FA authentication once, and configures the rest automatically.
+`npm-trust` bulk-configures OIDC Trusted Publishing for every package in your npm scope from a single command. It auto-discovers all published packages in your org, handles npm 2FA authentication once, and configures the rest automatically.
 
 ## Use cases
 
@@ -38,7 +42,7 @@ Pick the section that matches your situation. Each one shows the command to run 
 You've published a batch of packages under your npm scope and need to enable OIDC trust for all of them in one go.
 
 ```bash
-npx npm-trust-cli --scope @myorg --repo myorg/release-pipeline --workflow release.yml
+npx npm-trust --scope @myorg --repo myorg/release-pipeline --workflow release.yml
 ```
 
 The CLI auto-discovers every published package in the scope, configures each one, and reports a summary at the end. The first package triggers a browser auth flow; on the npm site, choose "skip 2FA for the next 5 minutes" so the rest finish without further prompts.
@@ -48,7 +52,7 @@ The CLI auto-discovers every published package in the scope, configures each one
 You already configured OIDC for your org's packages and just published one or more new ones. Combine `--scope` with `--only-new` to filter automatically — the CLI runs `npm trust list` and `npm view` per package and configures only the ones missing trust or not yet published.
 
 ```bash
-npx npm-trust-cli --scope @myorg --repo myorg/release-pipeline --workflow release.yml --only-new
+npx npm-trust --scope @myorg --repo myorg/release-pipeline --workflow release.yml --only-new
 ```
 
 `--only-new` works with any source (`--scope`, `--packages`, or `--auto`).
@@ -59,13 +63,13 @@ You maintain a standalone npm package (no monorepo, no scope-wide setup). Run fr
 
 ```bash
 cd ~/projects/my-package
-npx npm-trust-cli --auto --repo me/my-repo --workflow release.yml
+npx npm-trust --auto --repo me/my-repo --workflow release.yml
 ```
 
 If you'd rather be explicit:
 
 ```bash
-npx npm-trust-cli --packages my-package --repo me/my-repo --workflow release.yml
+npx npm-trust --packages my-package --repo me/my-repo --workflow release.yml
 ```
 
 ### 4. A monorepo (pnpm / npm / yarn workspaces, with or without NX)
@@ -74,7 +78,7 @@ You maintain a monorepo with multiple publishable packages — for example `pack
 
 ```bash
 cd ~/projects/my-monorepo
-npx npm-trust-cli --auto --repo myorg/repo --workflow release.yml
+npx npm-trust --auto --repo myorg/repo --workflow release.yml
 ```
 
 Detection priority: `pnpm-workspace.yaml` → `package.json#workspaces` → single `./package.json`. Packages marked `private: true` are skipped.
@@ -86,13 +90,13 @@ If every published package shares the same scope, `--scope @myorg` is also a one
 To inspect current trust status without making changes:
 
 ```bash
-npx npm-trust-cli --scope @myorg --list
+npx npm-trust --scope @myorg --list
 ```
 
 To preview what `configure` would do:
 
 ```bash
-npx npm-trust-cli --scope @myorg --repo myorg/repo --workflow release.yml --dry-run
+npx npm-trust --scope @myorg --repo myorg/repo --workflow release.yml --dry-run
 ```
 
 ## What happens during execution
@@ -148,7 +152,7 @@ Failed packages (publish first, then re-run):
 
 ## Programmatic usage
 
-`npm-trust-cli` is published as a dual CLI + library. The same package exposes a typed public API for use inside other tools, scripts, or CIs.
+`npm-trust` is published as a dual CLI + library. The same package exposes a typed public API for use inside other tools, scripts, or CIs.
 
 ```ts
 import {
@@ -159,7 +163,7 @@ import {
   findUnconfiguredPackages,
   listTrust,
   runCli,
-} from "npm-trust-cli";
+} from "npm-trust";
 ```
 
 ### `discoverPackages(scope)`
@@ -308,8 +312,8 @@ detected workspace, the GitHub remote, candidate workflow files, and per-
 package trust + provenance state. Plus a list of `issues` with stable codes.
 
 ```bash
-npx npm-trust-cli --doctor                # human-readable, color when stdout is a TTY
-npx npm-trust-cli --doctor --json         # machine-parseable JSON for agents and CI
+npx npm-trust --doctor                # human-readable, color when stdout is a TTY
+npx npm-trust --doctor --json         # machine-parseable JSON for agents and CI
 ```
 
 Exit code is `0` when no `fail`-severity issues exist, `1` otherwise. Warnings
@@ -334,7 +338,7 @@ versioned; consumers should switch on it before reading other fields.
 
 ## Use from a Claude Code agent
 
-`npm-trust-cli` ships with a Claude Code skill that wraps the wizard flow:
+`npm-trust` ships with a Claude Code skill that wraps the wizard flow:
 detect packages → diff → walk the user through `npm login` and any required
 publishes → configure → verify. The skill is a single Markdown file with
 plain bash steps; any agent that loads `.claude/skills/` can use it.
@@ -342,7 +346,7 @@ plain bash steps; any agent that loads `.claude/skills/` can use it.
 The CLI installs it for you:
 
 ```bash
-npx npm-trust-cli --init-skill
+npx npm-trust --init-skill
 ```
 
 This copies the bundled `skills/setup-npm-trust/SKILL.md` to
@@ -353,7 +357,7 @@ If you'd rather copy by hand:
 
 ```bash
 mkdir -p .claude/skills
-cp -r node_modules/npm-trust-cli/skills/setup-npm-trust .claude/skills/
+cp -r node_modules/npm-trust/skills/setup-npm-trust .claude/skills/
 ```
 
 In Claude Code, invoke `/setup-npm-trust` (or just describe the task — the
@@ -362,9 +366,27 @@ agent will pick the skill up automatically).
 The source lives at [`skills/setup-npm-trust/SKILL.md`](skills/setup-npm-trust/SKILL.md)
 in this repo if you want to read it without installing first.
 
+## Release workflow for solo AI devs
+
+`npm-trust` is the trust half of an opinionated release workflow built for
+solo developers (or small groups of LLM agents) shipping AI-generated code.
+The release half — a Claude Code skill that drives commit → tag → CI publish
+in one approval — lives in the sibling repo
+[`gagle/solo-npm-release-skill`](https://github.com/gagle/solo-npm-release-skill),
+distributed as a Claude Code marketplace plugin.
+
+```
+/plugin marketplace add gagle/solo-npm-release-skill
+/plugin install solo-npm-release-skill@gllamas-skills
+```
+
+The full architecture (release skill, default `/verify` skill, future
+bootstrap CLI, multi-repo composition, why this works for AI-driven solo
+dev) is documented in [`docs/bootstrap.md`](docs/bootstrap.md).
+
 ## Environment variables
 
 | Variable                  | Default                       | Description                                                                                                                                       |
 | ------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NPM_TRUST_CLI_NPM`       | `<dirname(process.execPath)>/npm` | Override the path to the `npm` binary. Used in tests; rarely needed in production.                                                            |
-| `NPM_TRUST_CLI_REGISTRY`  | `https://registry.npmjs.org`  | Override the registry used for package discovery. Must be `https://...`, or `http://localhost` / `http://127.0.0.1` for local mirrors and tests. |
+| `NPM_TRUST_NPM`       | `<dirname(process.execPath)>/npm` | Override the path to the `npm` binary. Used in tests; rarely needed in production.                                                            |
+| `NPM_TRUST_REGISTRY`  | `https://registry.npmjs.org`  | Override the registry used for package discovery. Must be `https://...`, or `http://localhost` / `http://127.0.0.1` for local mirrors and tests. |

@@ -130,10 +130,10 @@ describe("discoverPackages", () => {
     });
   });
 
-  describe("when NPM_TRUST_CLI_REGISTRY ends with a trailing slash", () => {
+  describe("when NPM_TRUST_REGISTRY ends with a trailing slash", () => {
     beforeEach(async () => {
       fetchMock.mockResolvedValueOnce(pageResponse({ objects: [], total: 0 }));
-      vi.stubEnv("NPM_TRUST_CLI_REGISTRY", "http://127.0.0.1:1234/");
+      vi.stubEnv("NPM_TRUST_REGISTRY", "http://127.0.0.1:1234/");
       await discoverPackages("@x");
     });
 
@@ -142,10 +142,10 @@ describe("discoverPackages", () => {
     });
   });
 
-  describe("when NPM_TRUST_CLI_REGISTRY uses http://localhost", () => {
+  describe("when NPM_TRUST_REGISTRY uses http://localhost", () => {
     beforeEach(async () => {
       fetchMock.mockResolvedValueOnce(pageResponse({ objects: [], total: 0 }));
-      vi.stubEnv("NPM_TRUST_CLI_REGISTRY", "http://localhost:4873");
+      vi.stubEnv("NPM_TRUST_REGISTRY", "http://localhost:4873");
       await discoverPackages("@x");
     });
 
@@ -154,19 +154,19 @@ describe("discoverPackages", () => {
     });
   });
 
-  describe("when NPM_TRUST_CLI_REGISTRY is malformed", () => {
+  describe("when NPM_TRUST_REGISTRY is malformed", () => {
     beforeEach(() => {
-      vi.stubEnv("NPM_TRUST_CLI_REGISTRY", "not a url");
+      vi.stubEnv("NPM_TRUST_REGISTRY", "not a url");
     });
 
-    it("should throw an Invalid NPM_TRUST_CLI_REGISTRY error", async () => {
-      await expect(discoverPackages("@x")).rejects.toThrow(/Invalid NPM_TRUST_CLI_REGISTRY/);
+    it("should throw an Invalid NPM_TRUST_REGISTRY error", async () => {
+      await expect(discoverPackages("@x")).rejects.toThrow(/Invalid NPM_TRUST_REGISTRY/);
     });
   });
 
-  describe("when NPM_TRUST_CLI_REGISTRY uses http for a non-localhost host", () => {
+  describe("when NPM_TRUST_REGISTRY uses http for a non-localhost host", () => {
     beforeEach(() => {
-      vi.stubEnv("NPM_TRUST_CLI_REGISTRY", "http://evil.example.com");
+      vi.stubEnv("NPM_TRUST_REGISTRY", "http://evil.example.com");
     });
 
     it("should reject the URL with a protocol-policy error", async () => {
@@ -176,13 +176,13 @@ describe("discoverPackages", () => {
     });
   });
 
-  describe("when NPM_TRUST_CLI_REGISTRY uses a non-http(s) protocol", () => {
+  describe("when NPM_TRUST_REGISTRY uses a non-http(s) protocol", () => {
     beforeEach(() => {
-      vi.stubEnv("NPM_TRUST_CLI_REGISTRY", "ftp://registry.example.com");
+      vi.stubEnv("NPM_TRUST_REGISTRY", "ftp://registry.example.com");
     });
 
     it("should reject the URL as invalid", async () => {
-      await expect(discoverPackages("@x")).rejects.toThrow(/Invalid NPM_TRUST_CLI_REGISTRY/);
+      await expect(discoverPackages("@x")).rejects.toThrow(/Invalid NPM_TRUST_REGISTRY/);
     });
   });
 

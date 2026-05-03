@@ -74,7 +74,7 @@ describe("CLI e2e", () => {
     });
 
     it("should print the binary name in stdout", () => {
-      expect(result.stdout).toContain("npm-trust-cli");
+      expect(result.stdout).toContain("npm-trust");
     });
 
     it("should print --scope in the help text", () => {
@@ -570,7 +570,7 @@ describe("CLI e2e", () => {
 
     beforeEach(async () => {
       result = await runCli({
-        args: ["--init-skill"],
+        args: ["--init-skill", "setup-npm-trust"],
         workspaceFiles: { "README.md": "scratch" },
       });
     });
@@ -615,7 +615,7 @@ describe("CLI e2e", () => {
 
     beforeEach(async () => {
       secondResult = await runCli({
-        args: ["--init-skill"],
+        args: ["--init-skill", "setup-npm-trust"],
         workspaceFiles: {
           ".claude/skills/setup-npm-trust/SKILL.md": "pre-existing content",
         },

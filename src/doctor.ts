@@ -48,7 +48,17 @@ export async function collectReport(options: RunDoctorOptions): Promise<DoctorRe
   const repo = inspectRepo(options.cwd);
   const workflows = await listWorkflows(options.cwd);
   const packages = await buildPackageEntries(workspace);
-  const issues = collectIssues({ runtime, auth, workspace, repo, workflows, packages, options });
+  const publishConfig = inspectPublishConfig(options.cwd);
+  const issues = collectIssues({
+    runtime,
+    auth,
+    workspace,
+    repo,
+    workflows,
+    packages,
+    publishConfig,
+    options,
+  });
   const summary = summarizeReport(packages, issues);
   return {
     schemaVersion: 1,
@@ -70,7 +80,7 @@ export function formatDoctorReportJson(report: DoctorReport): string {
 
 export function formatDoctorReportHuman(report: DoctorReport): string {
   const lines: Array<string> = [];
-  lines.push(`npm-trust-cli doctor — ${report.cli.version}`);
+  lines.push(`npm-trust doctor — ${report.cli.version}`);
   lines.push("");
   lines.push("Runtime");
   lines.push(
@@ -308,6 +318,11 @@ function toDoctorEntry(status: PackageStatus): PackageDoctorEntry {
   return { ...status, discrepancies };
 }
 
+interface PublishConfigSnapshot {
+  readonly registry: string | null;
+  readonly provenance: boolean;
+}
+
 interface IssueCollectionInput {
   readonly runtime: { node: VersionCheck; npm: VersionCheck; platform: string };
   readonly auth: { loggedIn: boolean; username: string | null; registry: string };
@@ -315,6 +330,7 @@ interface IssueCollectionInput {
   readonly repo: { url: string | null; inferredSlug: string | null; host: RepoHost };
   readonly workflows: ReadonlyArray<string>;
   readonly packages: ReadonlyArray<PackageDoctorEntry>;
+  readonly publishConfig: PublishConfigSnapshot;
   readonly options: RunDoctorOptions;
 }
 
@@ -446,6 +462,20 @@ function collectIssues(input: IssueCollectionInput): ReadonlyArray<DoctorIssue> 
       });
     }
   }
+  if (
+    input.publishConfig.registry !== null &&
+    !isUsualRegistry(input.publishConfig.registry) &&
+    input.publishConfig.provenance
+  ) {
+    issues.push({
+      severity: "warn",
+      code: "REGISTRY_PROVENANCE_CONFLICT",
+      message: `package.json#publishConfig has registry='${input.publishConfig.registry}' AND provenance=true; SLSA provenance signing only works on the public npm registry`,
+      remedy:
+        "Either remove `provenance: true` from publishConfig, or change `registry` back to the public npm registry",
+      relatedField: "publishConfig",
+    });
+  }
   if (input.options.conflictingFlags !== undefined && input.options.conflictingFlags.length > 0) {
     for (const flag of input.options.conflictingFlags) {
       issues.push({
@@ -475,8 +505,31 @@ function isUsualRegistry(url: string): boolean {
   return url.startsWith("https://registry.npmjs.org") || url === DEFAULT_REGISTRY;
 }
 
+function inspectPublishConfig(cwd: string): PublishConfigSnapshot {
+  const packageJsonPath = join(cwd, "package.json");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+  } catch {
+    return { registry: null, provenance: false };
+  }
+  if (typeof parsed !== "object" || parsed === null || !("publishConfig" in parsed)) {
+    return { registry: null, provenance: false };
+  }
+  const publishConfig = parsed.publishConfig;
+  if (typeof publishConfig !== "object" || publishConfig === null) {
+    return { registry: null, provenance: false };
+  }
+  const registry =
+    "registry" in publishConfig && typeof publishConfig.registry === "string"
+      ? publishConfig.registry
+      : null;
+  const provenance = "provenance" in publishConfig && publishConfig.provenance === true;
+  return { registry, provenance };
+}
+
 function resolveNpmBin(): string {
-  return process.env.NPM_TRUST_CLI_NPM ?? join(dirname(process.execPath), "npm");
+  return process.env.NPM_TRUST_NPM ?? join(dirname(process.execPath), "npm");
 }
 
 function marker(ok: boolean): string {

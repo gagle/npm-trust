@@ -31,7 +31,7 @@ stop and fix before proceeding.
 - [ ] `pnpm test:e2e` passes against the freshly built `dist/`.
 - [ ] Every CLI flag/path has at least one unit test.
 - [ ] Every CLI flag/path has at least one e2e test driving the built binary.
-- [ ] `bin/npm-trust-cli.js` is executable; `node bin/npm-trust-cli.js --help` prints usage.
+- [ ] `bin/npm-trust.js` is executable; `node bin/npm-trust.js --help` prints usage.
 - [ ] Smoke test: `--list` against a known scope succeeds.
 - [ ] `README.md` reflects current flags and the Node 24 requirement.
 - [ ] `LICENSE` file exists and matches `package.json` license field.
@@ -114,23 +114,23 @@ Ask the user to confirm before proceeding.
 Prepend a new section to `CHANGELOG.md` (create the file if it doesn't exist).
 
 ```markdown
-## [X.Y.Z](https://github.com/gagle/npm-trust-cli/compare/vPREV...vX.Y.Z) (YYYY-MM-DD)
+## [X.Y.Z](https://github.com/gagle/npm-trust/compare/vPREV...vX.Y.Z) (YYYY-MM-DD)
 
 ### Breaking Changes
 
-- subject ([hash](https://github.com/gagle/npm-trust-cli/commit/hash))
+- subject ([hash](https://github.com/gagle/npm-trust/commit/hash))
 
 ### Features
 
-- subject ([hash](https://github.com/gagle/npm-trust-cli/commit/hash))
+- subject ([hash](https://github.com/gagle/npm-trust/commit/hash))
 
 ### Bug Fixes
 
-- subject ([hash](https://github.com/gagle/npm-trust-cli/commit/hash))
+- subject ([hash](https://github.com/gagle/npm-trust/commit/hash))
 
 ### Performance
 
-- subject ([hash](https://github.com/gagle/npm-trust-cli/commit/hash))
+- subject ([hash](https://github.com/gagle/npm-trust/commit/hash))
 ```
 
 Only include sections that have entries. If the file is new, add a `# Changelog` header at the top.
@@ -182,7 +182,7 @@ There are **two** publish flows depending on whether this is the first publish.
 Determine which by running:
 
 ```bash
-npm view npm-trust-cli version 2>/dev/null || echo "FIRST_PUBLISH"
+npm view npm-trust version 2>/dev/null || echo "FIRST_PUBLISH"
 ```
 
 - If output is `FIRST_PUBLISH` → use **14a** (classic).
@@ -216,13 +216,13 @@ provenance from CI. Run this from an interactive terminal too — `npm trust`
 uses web-based 2FA only (no `--otp` flag, no env-var escape hatch):
 
 ```bash
-node bin/npm-trust-cli.js \
-  --packages npm-trust-cli \
-  --repo gagle/npm-trust-cli \
+node bin/npm-trust.js \
+  --packages npm-trust \
+  --repo gagle/npm-trust \
   --workflow release.yml
 ```
 
-(The package eats its own dogfood here — `npm-trust-cli` configuring trust for
+(The package eats its own dogfood here — `npm-trust` configuring trust for
 itself.) The first invocation opens a browser auth flow; on the npm site,
 enable the "skip 2FA for the next 5 minutes" toggle so subsequent calls in a
 multi-package run can complete without re-authenticating. The named workflow
@@ -250,12 +250,12 @@ commit.
 ### 15. Verify
 
 ```bash
-npm view npm-trust-cli@{version} version
+npm view npm-trust@{version} version
 ```
 
 Notify the user:
 
-> Released `v{version}` to npm. Tarball: https://www.npmjs.com/package/npm-trust-cli/v/{version}
+> Released `v{version}` to npm. Tarball: https://www.npmjs.com/package/npm-trust/v/{version}
 
 ## Failure recovery
 

@@ -9,18 +9,18 @@ interface SearchResult {
 }
 
 function resolveRegistry(): string {
-  const raw = process.env.NPM_TRUST_CLI_REGISTRY ?? "https://registry.npmjs.org";
+  const raw = process.env.NPM_TRUST_REGISTRY ?? "https://registry.npmjs.org";
   let parsed: URL;
   try {
     parsed = new URL(raw);
   } catch {
-    throw new Error(`Invalid NPM_TRUST_CLI_REGISTRY: ${raw}`);
+    throw new Error(`Invalid NPM_TRUST_REGISTRY: ${raw}`);
   }
   const isHttps = parsed.protocol === "https:";
   const isLocalHttp = parsed.protocol === "http:" && LOCAL_HOSTS.has(parsed.hostname);
   if (!isHttps && !isLocalHttp) {
     throw new Error(
-      `Invalid NPM_TRUST_CLI_REGISTRY: ${raw} (require https://, or http:// for localhost)`,
+      `Invalid NPM_TRUST_REGISTRY: ${raw} (require https://, or http:// for localhost)`,
     );
   }
   return raw.replace(/\/$/, "");

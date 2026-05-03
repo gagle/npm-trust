@@ -52,7 +52,7 @@ export function checkNodeVersion(): void {
 }
 
 export function checkNpmVersion(): void {
-  const npmBin = process.env.NPM_TRUST_CLI_NPM ?? join(dirname(process.execPath), "npm");
+  const npmBin = process.env.NPM_TRUST_NPM ?? join(dirname(process.execPath), "npm");
   const result = spawnSync(npmBin, ["--version"], {
     encoding: "utf-8",
     stdio: ["pipe", "pipe", "pipe"],
@@ -74,13 +74,13 @@ export function checkNpmVersion(): void {
 }
 
 export function printUsage(logger: Logger = console): void {
-  logger.log(`npm-trust-cli — Bulk-configure npm OIDC Trusted Publishing
+  logger.log(`npm-trust — Bulk-configure npm OIDC Trusted Publishing
 
 Usage:
-  npm-trust-cli --scope <scope> --repo <owner/repo> --workflow <file>
-  npm-trust-cli --packages <pkg1> <pkg2> --repo <owner/repo> --workflow <file>
-  npm-trust-cli --auto --repo <owner/repo> --workflow <file>
-  npm-trust-cli --scope <scope> --list
+  npm-trust --scope <scope> --repo <owner/repo> --workflow <file>
+  npm-trust --packages <pkg1> <pkg2> --repo <owner/repo> --workflow <file>
+  npm-trust --auto --repo <owner/repo> --workflow <file>
+  npm-trust --scope <scope> --list
 
 Options:
   --scope <scope>        npm org scope (e.g. @ncbijs) — discovers all packages
@@ -92,7 +92,8 @@ Options:
   --list                 list current trust status instead of configuring
   --only-new             filter to packages that have no OIDC trust yet or are unpublished
   --dry-run              show what would be done without making changes
-  --init-skill           install the bundled Claude Code skill into ./.claude/skills
+  --init-skill <name>    install a bundled Claude Code skill into ./.claude/skills
+                         (available: setup-npm-trust)
   --doctor               print a structured environment + per-package health report
   --json                 emit machine-readable JSON (only meaningful with --doctor)
   --help                 show this help message
@@ -119,7 +120,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       "dry-run": { type: "boolean", default: false },
       auto: { type: "boolean", default: false },
       "only-new": { type: "boolean", default: false },
-      "init-skill": { type: "boolean", default: false },
+      "init-skill": { type: "string" },
       doctor: { type: "boolean", default: false },
       json: { type: "boolean", default: false },
       help: { type: "boolean", default: false },
@@ -146,7 +147,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       dryRun: Boolean(values["dry-run"]),
       auto: Boolean(values.auto),
       onlyNew: Boolean(values["only-new"]),
-      initSkill: Boolean(values["init-skill"]),
+      initSkill: values["init-skill"],
       doctor: Boolean(values.doctor),
       json: Boolean(values.json),
     },
@@ -207,13 +208,25 @@ function describeWorkspaceSource(source: WorkspaceSource): string {
   }
 }
 
-function resolveBundledSkillPath(): string {
-  return fileURLToPath(new URL("../skills/setup-npm-trust/SKILL.md", import.meta.url));
+const KNOWN_SKILLS = ["setup-npm-trust"] as const;
+type KnownSkill = (typeof KNOWN_SKILLS)[number];
+
+function resolveBundledSkillPath(skill: KnownSkill): string {
+  return fileURLToPath(new URL(`../skills/${skill}/SKILL.md`, import.meta.url));
 }
 
-async function initSkill(cwd: string, logger: RuntimeLogger): Promise<number> {
-  const sourceFile = resolveBundledSkillPath();
-  const targetDir = join(cwd, ".claude", "skills", "setup-npm-trust");
+function isKnownSkill(name: string): name is KnownSkill {
+  return (KNOWN_SKILLS as ReadonlyArray<string>).includes(name);
+}
+
+async function initSkill(skill: string, cwd: string, logger: RuntimeLogger): Promise<number> {
+  if (!isKnownSkill(skill)) {
+    logger.error(`Error: unknown skill "${skill}". Available skills: ${KNOWN_SKILLS.join(", ")}`);
+    return 1;
+  }
+
+  const sourceFile = resolveBundledSkillPath(skill);
+  const targetDir = join(cwd, ".claude", "skills", skill);
   const targetFile = join(targetDir, "SKILL.md");
 
   await mkdir(targetDir, { recursive: true });
@@ -232,7 +245,7 @@ async function initSkill(cwd: string, logger: RuntimeLogger): Promise<number> {
     throw err;
   }
 
-  logger.log(`Installed setup-npm-trust skill to ${targetFile}`);
+  logger.log(`Installed ${skill} skill to ${targetFile}`);
   return 0;
 }
 
@@ -252,8 +265,8 @@ export async function runCli(
       return 0;
     }
 
-    if (options.initSkill) {
-      return await initSkill(process.cwd(), logger);
+    if (options.initSkill !== undefined) {
+      return await initSkill(options.initSkill, process.cwd(), logger);
     }
 
     if (options.doctor) {

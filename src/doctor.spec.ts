@@ -106,11 +106,11 @@ function setupSpawnRoutes(routes: SpawnRoutes): void {
 
 const HEALTHY_WORKSPACE: DiscoveredWorkspace = {
   source: "single-package",
-  packages: ["npm-trust-cli"],
+  packages: ["npm-trust"],
 };
 
 const HEALTHY_PACKAGE: PackageStatus = {
-  pkg: "npm-trust-cli",
+  pkg: "npm-trust",
   trustConfigured: true,
   published: true,
   hasProvenance: true,
@@ -119,7 +119,7 @@ const HEALTHY_PACKAGE: PackageStatus = {
 function setupHealthyEnvironment(): void {
   stubNodeVersion("24.14.1");
   setupSpawnRoutes({
-    gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+    gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
   });
   discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
   globMock.mockImplementation((pattern: string) => {
@@ -167,7 +167,7 @@ describe("collectReport", () => {
 
     it("should infer the GitHub slug", () => {
       expect(report.repo).toMatchObject({
-        inferredSlug: "gagle/npm-trust-cli",
+        inferredSlug: "gagle/npm-trust",
         host: "github",
       });
     });
@@ -187,7 +187,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("22.0.0");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation((pattern: string) =>
@@ -215,7 +215,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion(undefined);
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -235,7 +235,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmVersion: { error: new Error("ENOENT") },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation((pattern: string) =>
@@ -259,7 +259,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmVersion: { stdout: "10.0.0\n", status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation((pattern: string) =>
@@ -283,7 +283,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmVersion: { stdout: "11.4.99\n", status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -302,7 +302,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmVersion: { stdout: "11.5.0\n", status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -321,7 +321,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmVersion: { stdout: "garbage\n", status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -340,7 +340,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmVersion: { status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -360,7 +360,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmVersion: { stdout: "11\n", status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -379,7 +379,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmVersion: { stdout: "11.5\n", status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -398,7 +398,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmVersion: { stdout: "12\n", status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -417,7 +417,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmConfigRegistry: { stdout: "", status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -436,7 +436,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmWhoami: { stdout: "", status: 1 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation((pattern: string) =>
@@ -460,7 +460,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmWhoami: { stdout: "", status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -479,7 +479,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmConfigRegistry: { stdout: "https://npm.pkg.github.com/\n", status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation((pattern: string) =>
@@ -502,7 +502,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation((pattern: string) =>
@@ -528,7 +528,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce({ source: "pnpm-workspace", packages: [] });
       globMock.mockImplementation((pattern: string) =>
@@ -613,7 +613,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "git@github.com:gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "git@github.com:gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -621,7 +621,7 @@ describe("collectReport", () => {
     });
 
     it("should still infer the GitHub slug", () => {
-      expect(report.repo.inferredSlug).toBe("gagle/npm-trust-cli");
+      expect(report.repo.inferredSlug).toBe("gagle/npm-trust");
     });
   });
 
@@ -631,7 +631,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -650,7 +650,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation((pattern: string) => {
@@ -678,7 +678,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation((pattern: string) =>
@@ -705,7 +705,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation((pattern: string) => {
@@ -737,7 +737,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([""]));
@@ -755,7 +755,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce({
         source: "single-package",
@@ -783,7 +783,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce({
         source: "single-package",
@@ -809,6 +809,124 @@ describe("collectReport", () => {
     });
   });
 
+  describe("when publishConfig has a custom registry AND provenance: true", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { registry: "https://internal.example.com/", provenance: true },
+        }),
+      );
+      setupHealthyEnvironment();
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should produce REGISTRY_PROVENANCE_CONFLICT", () => {
+      expect(issueCodes(report)).toContain("REGISTRY_PROVENANCE_CONFLICT");
+    });
+
+    it("should mention the offending registry in the message", () => {
+      const issue = report.issues.find((i) => i.code === "REGISTRY_PROVENANCE_CONFLICT");
+      expect(issue?.message).toContain("https://internal.example.com/");
+    });
+
+    it("should classify the issue as a warn (not fail)", () => {
+      const issue = report.issues.find((i) => i.code === "REGISTRY_PROVENANCE_CONFLICT");
+      expect(issue?.severity).toBe("warn");
+    });
+  });
+
+  describe("when publishConfig points at the public registry with provenance", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { registry: "https://registry.npmjs.org/", provenance: true },
+        }),
+      );
+      setupHealthyEnvironment();
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should NOT produce REGISTRY_PROVENANCE_CONFLICT", () => {
+      expect(issueCodes(report)).not.toContain("REGISTRY_PROVENANCE_CONFLICT");
+    });
+  });
+
+  describe("when publishConfig has a custom registry but provenance is unset", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { registry: "https://internal.example.com/" },
+        }),
+      );
+      setupHealthyEnvironment();
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should NOT produce REGISTRY_PROVENANCE_CONFLICT", () => {
+      expect(issueCodes(report)).not.toContain("REGISTRY_PROVENANCE_CONFLICT");
+    });
+  });
+
+  describe("when publishConfig is not an object", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(JSON.stringify({ version: "0.6.0", publishConfig: "wat" }));
+      setupHealthyEnvironment();
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should NOT produce REGISTRY_PROVENANCE_CONFLICT", () => {
+      expect(issueCodes(report)).not.toContain("REGISTRY_PROVENANCE_CONFLICT");
+    });
+  });
+
+  describe("when publishConfig.registry is not a string", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { registry: 42, provenance: true },
+        }),
+      );
+      setupHealthyEnvironment();
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should NOT produce REGISTRY_PROVENANCE_CONFLICT", () => {
+      expect(issueCodes(report)).not.toContain("REGISTRY_PROVENANCE_CONFLICT");
+    });
+  });
+
+  describe("when reading the cwd package.json throws", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock
+        .mockReturnValueOnce(JSON.stringify({ version: "0.6.0" }))
+        .mockImplementationOnce(() => {
+          throw new Error("EACCES: permission denied");
+        });
+      setupHealthyEnvironment();
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should NOT produce REGISTRY_PROVENANCE_CONFLICT (and should not crash)", () => {
+      expect(issueCodes(report)).not.toContain("REGISTRY_PROVENANCE_CONFLICT");
+    });
+  });
+
   describe("when package.json has no version field", () => {
     let report: DoctorReport;
 
@@ -816,7 +934,7 @@ describe("collectReport", () => {
       stubNodeVersion("24.14.1");
       readFileSyncMock.mockReturnValueOnce(JSON.stringify({ name: "x" }));
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -836,7 +954,7 @@ describe("collectReport", () => {
       setupSpawnRoutes({
         npmWhoami: { status: 0 },
         npmConfigRegistry: { status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -876,7 +994,7 @@ describe("collectReport", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation((pattern: string) =>
@@ -916,7 +1034,7 @@ describe("formatDoctorReportJson", () => {
     });
 
     it("should preserve the package list", () => {
-      expect(parsed.packages.map((pkg) => pkg.pkg)).toStrictEqual(["npm-trust-cli"]);
+      expect(parsed.packages.map((pkg) => pkg.pkg)).toStrictEqual(["npm-trust"]);
     });
   });
 });
@@ -932,7 +1050,7 @@ describe("formatDoctorReportHuman", () => {
     });
 
     it("should include the doctor banner", () => {
-      expect(output).toContain("npm-trust-cli doctor");
+      expect(output).toContain("npm-trust doctor");
     });
 
     it("should include the Runtime, Authentication, Workspace, Repo, Workflows headers", () => {
@@ -986,7 +1104,7 @@ describe("formatDoctorReportHuman", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce({
         source: "single-package",
@@ -1016,7 +1134,7 @@ describe("formatDoctorReportHuman", () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
         npmWhoami: { stdout: "", status: 0 },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -1036,7 +1154,7 @@ describe("formatDoctorReportHuman", () => {
       stubNodeVersion(undefined);
       setupSpawnRoutes({
         npmVersion: { error: new Error("ENOENT") },
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(null);
       globMock.mockImplementation(() => asyncIterable([]));
@@ -1075,7 +1193,7 @@ describe("formatDoctorReportHuman", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation((pattern: string) =>
@@ -1103,7 +1221,7 @@ describe("formatDoctorReportHuman", () => {
     beforeEach(async () => {
       stubNodeVersion("24.14.1");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce({
         source: "single-package",
@@ -1143,7 +1261,7 @@ describe("runDoctor", () => {
     });
 
     it("should write the human report to logger.log", () => {
-      expect(logger.logs[0]).toContain("npm-trust-cli doctor");
+      expect(logger.logs[0]).toContain("npm-trust doctor");
     });
   });
 
@@ -1167,7 +1285,7 @@ describe("runDoctor", () => {
     beforeEach(async () => {
       stubNodeVersion("22.0.0");
       setupSpawnRoutes({
-        gitRemote: { stdout: "https://github.com/gagle/npm-trust-cli.git\n", status: 0 },
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
       });
       discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
       globMock.mockImplementation((pattern: string) =>

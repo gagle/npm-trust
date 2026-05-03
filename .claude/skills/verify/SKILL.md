@@ -56,7 +56,7 @@ calls hit the real internet.
 Final sanity check that the published artifact is wired correctly:
 
 ```bash
-node bin/npm-trust-cli.js --help
+node bin/npm-trust.js --help
 ```
 
 Should print usage and exit 0.

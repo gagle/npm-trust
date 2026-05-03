@@ -5,7 +5,7 @@ import type { PackageStatus } from "./interfaces/cli.interface.js";
 const DEFAULT_CONCURRENCY = 8;
 
 function resolveNpmBin(): string {
-  return process.env.NPM_TRUST_CLI_NPM ?? join(dirname(process.execPath), "npm");
+  return process.env.NPM_TRUST_NPM ?? join(dirname(process.execPath), "npm");
 }
 
 function buildSpawnEnv(): NodeJS.ProcessEnv {

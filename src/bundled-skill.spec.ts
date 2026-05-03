@@ -49,16 +49,16 @@ describe("bundled setup-npm-trust skill", () => {
       expect(content).toContain("<CLI> --auto");
     });
 
-    it("should mention `node ./bin/npm-trust-cli.js` as a source-checkout fallback", () => {
-      expect(content).toContain("node ./bin/npm-trust-cli.js");
+    it("should mention `node ./bin/npm-trust.js` as a source-checkout fallback", () => {
+      expect(content).toContain("node ./bin/npm-trust.js");
     });
 
     it("should mention an npx fallback for registry fetch", () => {
-      expect(content).toContain("npx -y npm-trust-cli@latest");
+      expect(content).toContain("npx -y npm-trust@latest");
     });
 
     it("should not assume pnpm by hardcoding pnpm exec", () => {
-      expect(content).not.toContain("pnpm exec npm-trust-cli");
+      expect(content).not.toContain("pnpm exec npm-trust");
     });
   });
 

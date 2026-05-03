@@ -1,8 +1,8 @@
-# npm-trust-cli — Claude Code context
+# npm-trust — Claude Code context
 
 ## Project
 
-`npm-trust-cli` is a TypeScript ESM CLI **and library** that bulk-configures
+`npm-trust` is a TypeScript ESM CLI **and library** that bulk-configures
 npm OIDC Trusted Publishing for every package in an npm scope. It auto-discovers
 packages via the npm registry, calls `npm trust github` for each, and prints
 a summary. `npm trust` uses web-based 2FA only — the first call opens a
@@ -11,8 +11,8 @@ of the bulk run finish without re-authenticating.
 
 The package ships two surfaces from the same tarball:
 
-- **CLI**: `npx npm-trust-cli ...` (entry: `bin/npm-trust-cli.js` → `dist/cli.js`).
-- **Library**: `import { configureTrust, listTrust, discoverPackages, runCli } from 'npm-trust-cli'` (entry: `dist/index.js`).
+- **CLI**: `npx npm-trust ...` (entry: `bin/npm-trust.js` → `dist/cli.js`).
+- **Library**: `import { configureTrust, listTrust, discoverPackages, runCli } from 'npm-trust'` (entry: `dist/index.js`).
 
 ## Stack
 
@@ -26,7 +26,7 @@ The package ships two surfaces from the same tarball:
 ## Layout
 
 ```
-bin/npm-trust-cli.js          # shebang, imports dist/cli.js
+bin/npm-trust.js          # shebang, imports dist/cli.js
 src/
   index.ts                    # PUBLIC LIBRARY — re-exports only, no side effects
   cli.ts                      # CLI bootstrap (main, parseCliArgs, version guards)
@@ -92,4 +92,4 @@ Before any `npm publish`, run the `release` skill. The first release is **v0.0.0
 
 - **Don't add the `.js` extension** to TS imports (`import './foo'` not `'./foo.js'`) — `verbatimModuleSyntax` + Node16 module resolution handles it. Wait — actually this codebase **does** use `.js` extensions in imports (see `discover.ts`, `trust.ts`). User-global TS rule says no `.js`, but Node16 ESM **requires** them at runtime. **For this repo, keep `.js` extensions in source imports** — the runtime resolution overrides the user-global preference.
 - **Don't expose internals** — only the surface listed under "Project" should be exported from `src/index.ts`. Helpers stay unexported.
-- **Don't break the CLI surface** — `bin/npm-trust-cli.js` must remain working. Test via `pnpm test:e2e`.
+- **Don't break the CLI surface** — `bin/npm-trust.js` must remain working. Test via `pnpm test:e2e`.

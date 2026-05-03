@@ -7,7 +7,7 @@ export interface CliOptions {
   readonly dryRun?: boolean;
   readonly auto?: boolean;
   readonly onlyNew?: boolean;
-  readonly initSkill?: boolean;
+  readonly initSkill?: string;
   readonly doctor?: boolean;
   readonly json?: boolean;
 }
@@ -44,6 +44,7 @@ export type DoctorIssueCode =
   | "PACKAGE_TRUST_DISCREPANCY"
   | "PACKAGE_NOT_PUBLISHED"
   | "REGISTRY_UNREACHABLE"
+  | "REGISTRY_PROVENANCE_CONFLICT"
   | "DOCTOR_FLAG_IGNORED";
 
 export interface DoctorIssue {

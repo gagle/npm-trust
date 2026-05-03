@@ -206,7 +206,7 @@ describe("printUsage", () => {
     });
 
     it("should log the help text including the binary name", () => {
-      expect(logger.logs[0]).toContain("npm-trust-cli");
+      expect(logger.logs[0]).toContain("npm-trust");
     });
 
     it("should log the help text including the --scope flag", () => {
@@ -356,7 +356,7 @@ describe("runCli", () => {
     });
 
     it("should print the usage text", () => {
-      expect(logger.logs[0]).toContain("npm-trust-cli");
+      expect(logger.logs[0]).toContain("npm-trust");
     });
   });
 
@@ -980,7 +980,7 @@ describe("runCli", () => {
       mkdirMock.mockResolvedValueOnce(undefined);
       copyFileMock.mockResolvedValueOnce(undefined);
       logger = createLogger();
-      exitCode = await runCli(["--init-skill"], logger);
+      exitCode = await runCli(["--init-skill", "setup-npm-trust"], logger);
     });
 
     it("should exit 0", () => {
@@ -1019,7 +1019,7 @@ describe("runCli", () => {
       mkdirMock.mockResolvedValueOnce(undefined);
       copyFileMock.mockRejectedValueOnce(fsError("ENOENT"));
       logger = createLogger();
-      exitCode = await runCli(["--init-skill"], logger);
+      exitCode = await runCli(["--init-skill", "setup-npm-trust"], logger);
     });
 
     it("should exit 1", () => {
@@ -1039,7 +1039,7 @@ describe("runCli", () => {
       mkdirMock.mockResolvedValueOnce(undefined);
       copyFileMock.mockRejectedValueOnce(fsError("EEXIST"));
       logger = createLogger();
-      exitCode = await runCli(["--init-skill"], logger);
+      exitCode = await runCli(["--init-skill", "setup-npm-trust"], logger);
     });
 
     it("should exit 1", () => {
@@ -1059,7 +1059,7 @@ describe("runCli", () => {
       mkdirMock.mockResolvedValueOnce(undefined);
       copyFileMock.mockRejectedValueOnce(fsError("EACCES"));
       logger = createLogger();
-      exitCode = await runCli(["--init-skill"], logger);
+      exitCode = await runCli(["--init-skill", "setup-npm-trust"], logger);
     });
 
     it("should exit 1", () => {
@@ -1079,7 +1079,7 @@ describe("runCli", () => {
       mkdirMock.mockResolvedValueOnce(undefined);
       copyFileMock.mockRejectedValueOnce("plain string failure");
       logger = createLogger();
-      exitCode = await runCli(["--init-skill"], logger);
+      exitCode = await runCli(["--init-skill", "setup-npm-trust"], logger);
     });
 
     it("should exit 1", () => {
@@ -1088,6 +1088,48 @@ describe("runCli", () => {
 
     it("should coerce the rejection value into the error log", () => {
       expect(logger.errors[0]).toBe("Error: plain string failure");
+    });
+  });
+
+  describe("when --init-skill is given an unknown skill name", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli(["--init-skill", "bogus"], logger);
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log the available skills", () => {
+      expect(logger.errors[0]).toContain('unknown skill "bogus"');
+      expect(logger.errors[0]).toContain("setup-npm-trust");
+    });
+
+    it("should not attempt to create any directory", () => {
+      expect(mkdirMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when --init-skill is passed without a value", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli(["--init-skill"], logger);
+    });
+
+    it("should exit 1", () => {
+      expect(exitCode).toBe(1);
+    });
+
+    it("should log a parseArgs-style error about the missing value", () => {
+      expect(logger.errors[0]).toContain("Error:");
+      expect(logger.errors[0]).toContain("init-skill");
     });
   });
 
