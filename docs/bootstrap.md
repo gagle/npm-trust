@@ -100,6 +100,10 @@ Claude Code marketplaces are GitHub repos with `.claude-plugin/` manifests
 /plugin install release-solo-npm@gllamas-skills
 ```
 
+The pattern follows
+[`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills) —
+a well-trodden path.
+
 ---
 
 ## 3. The release skill — full lifecycle
@@ -428,3 +432,5 @@ shouldn't be frozen yet.
 - [`gagle/npm-trust`](https://github.com/gagle/npm-trust) — this repo.
 - [`gagle/release-solo-npm`](https://github.com/gagle/release-solo-npm)
   — the marketplace plugin for `/release-solo-npm` and `/verify-solo-npm`.
+- [`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills)
+  — the canonical example of a Claude Code marketplace plugin.
