@@ -1,6 +1,6 @@
 {
   "name": "npm-trust",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Bulk-configure npm OIDC Trusted Publishing for all packages in a scope",
   "type": "module",
   "bin": {

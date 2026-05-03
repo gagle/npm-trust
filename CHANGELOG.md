@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.1](https://github.com/gagle/npm-trust/compare/v0.6.0...v0.6.1) (2026-05-03)
+
+**First proper provenance-attested release under the `npm-trust` name.**
+
+v0.6.0 was a bootstrap classic publish (no provenance) because OIDC trust
+needed the package to exist on the registry first. Trust was configured
+immediately after, and v0.6.1 onward ships from tag-triggered CI with
+SLSA provenance — like every other release in the v0.x line.
+
+### Refactor / Docs
+
+- align `setup-npm-trust` skill mentions and `docs/bootstrap.md`
+  references with the renamed marketplace plugin (`solo-npm-release-skill`
+  → `release-solo-npm`); slash commands updated to `/release-solo-npm`
+  and `/verify-solo-npm` ([8c7c228](https://github.com/gagle/npm-trust/commit/8c7c228))
+
 ## [0.6.0](https://github.com/gagle/npm-trust/compare/v0.5.0...v0.6.0) (2026-05-03)
 
 ### Renamed: `npm-trust-cli` → `npm-trust`
