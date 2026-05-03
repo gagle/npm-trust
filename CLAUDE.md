@@ -66,7 +66,7 @@ User-global conventions in `~/.claude/rules/` (TypeScript / Angular / SCSS / a11
 
 - `commit` — git workflow (stage by name, conventional commits, squash, push).
 - `verify` — lint → typecheck → build → test → test:e2e → CLI smoke. Run before marking work complete.
-- `release` — v0.0.0 readiness checklist + version bump + changelog + tag.
+- `release-solo-npm` — three-phase tag-triggered release (pre-flight → AskUserQuestion → execute) from the `gagle/release-solo-npm` marketplace plugin; bumps version, generates changelog, tags, watches CI, verifies provenance.
 - `review` — five-axis principal review.
 - `testing` — Vitest test templates.
 - `security-audit`, `debug-issue`, `explore-codebase`, `refactor-safely` — generic.
@@ -86,7 +86,9 @@ The graph auto-updates via `PostToolUse` hooks; run `mcp__code-review-graph__bui
 
 ## Pre-publish
 
-Before any `npm publish`, run the `release` skill. The first release is **v0.0.0** with a full readiness checklist that gates lint, typecheck, build, unit coverage, e2e, packaging dry-run, and CI green.
+For a normal release, invoke `/release-solo-npm` — it runs Phase A pre-flight (`/verify` + `npm-trust --doctor`), shows the plan with one `AskUserQuestion` approval, then commits / tags / watches CI / verifies provenance on the registry.
+
+The package is past first-publish (currently at v0.6.1 with OIDC trust configured). For a hypothetical fresh repo doing its first publish, see [`docs/bootstrap.md`](docs/bootstrap.md) §5 ("First publish — the chicken-and-egg") — the classic-publish step is repo-author-driven; the trust-setup half is owned by the bundled `setup-npm-trust` skill.
 
 ## Important guardrails
 
