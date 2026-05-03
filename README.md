@@ -372,15 +372,15 @@ in this repo if you want to read it without installing first.
 solo developers (or small groups of LLM agents) shipping AI-generated code.
 The release half — a Claude Code skill that drives commit → tag → CI publish
 in one approval — lives in the sibling repo
-[`gagle/solo-npm-release-skill`](https://github.com/gagle/solo-npm-release-skill),
+[`gagle/release-solo-npm`](https://github.com/gagle/release-solo-npm),
 distributed as a Claude Code marketplace plugin.
 
 ```
-/plugin marketplace add gagle/solo-npm-release-skill
-/plugin install solo-npm-release-skill@gllamas-skills
+/plugin marketplace add gagle/release-solo-npm
+/plugin install release-solo-npm@gllamas-skills
 ```
 
-The full architecture (release skill, default `/verify` skill, future
+The full architecture (release skill, default `/verify-solo-npm` skill, future
 bootstrap CLI, multi-repo composition, why this works for AI-driven solo
 dev) is documented in [`docs/bootstrap.md`](docs/bootstrap.md).
 

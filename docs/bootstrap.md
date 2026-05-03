@@ -51,11 +51,11 @@ Three repos, each owning exactly one concern:
 
 ```
 ┌────────────────────────────┐  ┌─────────────────────────────────┐
-│  gagle/npm-trust           │  │  gagle/solo-npm-release-skill   │
+│  gagle/npm-trust           │  │  gagle/release-solo-npm   │
 │  ─────────────────────     │  │  ─────────────────────────────  │
 │  Trust + OIDC infra        │  │  Claude Code marketplace plugin │
-│  • CLI: --doctor, --auto   │  │  • /release skill (3 phases)    │
-│  • Bundled setup-npm-trust │  │  • /verify skill (lint+test+    │
+│  • CLI: --doctor, --auto   │  │  • /release-solo-npm skill (3 phases)    │
+│  • Bundled setup-npm-trust │  │  • /verify-solo-npm skill (lint+test+    │
 │    skill                   │  │    build, customizable)         │
 │  • Library API             │  │  • Distributed via /plugin      │
 └────────────────────────────┘  └─────────────────────────────────┘
@@ -65,7 +65,7 @@ Three repos, each owning exactly one concern:
 │  ───────────────────────────────────────────                    │
 │  Scaffolds a fresh AI-driven repo: CLAUDE.md, .claude/,         │
 │  .github/workflows/, CONTRIBUTING.md, package.json, etc.        │
-│  Pulls release + verify from gagle/solo-npm-release-skill.      │
+│  Pulls release + verify from gagle/release-solo-npm.      │
 │  Pulls trust setup from gagle/npm-trust.                        │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -96,8 +96,8 @@ Claude Code marketplaces are GitHub repos with `.claude-plugin/` manifests
 `skills/<name>/SKILL.md`. Install is two lines:
 
 ```
-/plugin marketplace add gagle/solo-npm-release-skill
-/plugin install solo-npm-release-skill@gllamas-skills
+/plugin marketplace add gagle/release-solo-npm
+/plugin install release-solo-npm@gllamas-skills
 ```
 
 The pattern follows
@@ -108,14 +108,14 @@ a well-trodden path.
 
 ## 3. The release skill — full lifecycle
 
-The `/release` skill (from `solo-npm-release-skill`) drives a release
+The `/release-solo-npm` skill (from `release-solo-npm`) drives a release
 through **three phases** with **one human checkpoint**.
 
 ### Phase A — Pre-flight (silent if green)
 
 1. **Working tree clean** — `git status --porcelain` empty, else STOP.
-2. **`/verify`** — lint + test + build. The skill defers to the user's
-   `/verify` skill (also from the marketplace plugin), which can be
+2. **`/verify-solo-npm`** — lint + test + build. The skill defers to the user's
+   `/verify-solo-npm` skill (also from the marketplace plugin), which can be
    customized per-repo.
 3. **`npm-trust --doctor --json`** — checks Node version, npm version,
    workspace detection, repo remote, workflow file, package publication,
@@ -153,7 +153,7 @@ After approval at B.5, runs end-to-end:
    `packages/*/package.json#version` if monorepo).
 2. Commit `chore: release v${NEXT_VERSION}`.
 3. Push (commit only, no tag yet).
-4. Final `/verify` against the bumped state.
+4. Final `/verify-solo-npm` against the bumped state.
 5. Tag `v${NEXT_VERSION}` and push the tag — **this triggers the
    release workflow**.
 6. `gh run watch --exit-status` until CI completes.
@@ -166,7 +166,7 @@ skill's "Failure modes and recovery" table.
 
 ### Why one approval and not zero
 
-A fully-zero-approval flow is technically possible: `/release` could
+A fully-zero-approval flow is technically possible: `/release-solo-npm` could
 auto-confirm every plan. The user rejected this — the **single approval
 gate is the security boundary**. The agent computes a plan; a human
 ratifies before any tag is pushed. This is the smallest possible review
@@ -181,7 +181,7 @@ exactly the failure mode this design guards against.
 
 ## 4. The verify skill
 
-`/verify` is a separate skill (also shipped by `solo-npm-release-skill`)
+`/verify-solo-npm` is a separate skill (also shipped by `release-solo-npm`)
 that runs the verification gates for the repo.
 
 **Default body**: lint + test + build (with placeholders for the actual
@@ -190,14 +190,14 @@ commands).
 **The point of separateness**: verification is the *per-repo
 customization point*. Different stacks need different commands (e2e,
 coverage thresholds, typecheck, license audit, bundle size limits). By
-making it its own skill, `/release` doesn't need to know what
-"verification" means for any specific stack — it just calls `/verify`
+making it its own skill, `/release-solo-npm` doesn't need to know what
+"verification" means for any specific stack — it just calls `/verify-solo-npm`
 and trusts the result.
 
-The user edits `.claude/skills/verify/SKILL.md` after install to fit
-their stack. `/release` Phase A.2 and Phase C.4 both invoke it.
+The user edits `.claude/skills/verify-solo-npm/SKILL.md` after install to fit
+their stack. `/release-solo-npm` Phase A.2 and Phase C.4 both invoke it.
 
-If `/verify` isn't installed (e.g., user only installed `/release`),
+If `/verify-solo-npm` isn't installed (e.g., user only installed `/release-solo-npm`),
 the release skill falls back to running `<LINT_CMD> && <TEST_CMD> &&
 <BUILD_CMD>` inline using the placeholder values.
 
@@ -213,7 +213,7 @@ needs trust to be configured first.
 
 ### The bootstrap path
 
-1. **Develop the MVP locally**. Run `/verify` until clean.
+1. **Develop the MVP locally**. Run `/verify-solo-npm` until clean.
 2. **Bump to 0.1.0** (or 1.0.0 — your call).
 3. **Classic publish, locally, ONE time**:
    ```bash
@@ -234,7 +234,7 @@ needs trust to be configured first.
      "provenance": true
    }
    ```
-6. **From here, every subsequent release uses `/release`** — no more
+6. **From here, every subsequent release uses `/release-solo-npm`** — no more
    classic publishes. CI handles publish via OIDC + provenance.
 
 This is the only place the release flow needs a human at the keyboard
@@ -286,7 +286,7 @@ The combo can't work. Doctor surfaces the remedy: either remove
 
 ### What the release skill does
 
-Phase B of `/release` reads `publishConfig.registry`. If unset or
+Phase B of `/release-solo-npm` reads `publishConfig.registry`. If unset or
 public, the summary shows "Trust ✓ (provenance present)". If custom,
 "Trust ✗ skipped (custom registry)" — and Phase C.7's verification step
 skips the `dist.attestations` check.
@@ -379,8 +379,8 @@ npx <bootstrap-cli> init my-package
   `setup-npm-trust` skill) once.
 - For release skill: doesn't bundle either. Instead, the generated
   `README.md` has a "Next steps" section pointing at
-  `/plugin marketplace add gagle/solo-npm-release-skill` and
-  `/plugin install solo-npm-release-skill@gllamas-skills`.
+  `/plugin marketplace add gagle/release-solo-npm` and
+  `/plugin install release-solo-npm@gllamas-skills`.
 
 This keeps the bootstrap CLI's surface area small. It's a generator,
 not a runtime.
@@ -415,7 +415,7 @@ shouldn't be frozen yet.
 - **One structured approval gate.** Not a free-text "yes/no" prompt
   (those blend into agent output). A clearly-labeled selector —
   unmissable. The human ratifies the plan; the agent executes.
-- **Composable.** `/verify` is its own skill. `/release` is its own
+- **Composable.** `/verify-solo-npm` is its own skill. `/release-solo-npm` is its own
   skill. `npm-trust` is its own package. Each piece can evolve
   independently.
 - **No special cases.** Every release follows the same path: phase A →
@@ -430,7 +430,7 @@ shouldn't be frozen yet.
 ## Related
 
 - [`gagle/npm-trust`](https://github.com/gagle/npm-trust) — this repo.
-- [`gagle/solo-npm-release-skill`](https://github.com/gagle/solo-npm-release-skill)
-  — the marketplace plugin for `/release` and `/verify`.
+- [`gagle/release-solo-npm`](https://github.com/gagle/release-solo-npm)
+  — the marketplace plugin for `/release-solo-npm` and `/verify-solo-npm`.
 - [`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills)
   — the canonical example of a Claude Code marketplace plugin.
