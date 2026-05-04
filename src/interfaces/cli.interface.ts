@@ -7,7 +7,6 @@ export interface CliOptions {
   readonly dryRun?: boolean;
   readonly auto?: boolean;
   readonly onlyNew?: boolean;
-  readonly initSkill?: string;
   readonly doctor?: boolean;
   readonly json?: boolean;
 }

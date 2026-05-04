@@ -66,10 +66,14 @@ User-global conventions in `~/.claude/rules/` (TypeScript / Angular / SCSS / a11
 
 - `commit` — git workflow (stage by name, conventional commits, squash, push).
 - `verify` — lint → typecheck → build → test → test:e2e → CLI smoke. Run before marking work complete.
-- `release-solo-npm` — three-phase tag-triggered release (pre-flight → AskUserQuestion → execute) from the `gagle/release-solo-npm` marketplace plugin; bumps version, generates changelog, tags, watches CI, verifies provenance.
+- `release` — three-phase tag-triggered release wrapper that invokes `/solo-npm:release` from the [`gagle/solo-npm`](https://github.com/gagle/solo-npm) marketplace plugin; bumps version, generates changelog, tags, watches CI, verifies provenance.
 - `review` — five-axis principal review.
 - `testing` — Vitest test templates.
 - `security-audit`, `debug-issue`, `explore-codebase`, `refactor-safely` — generic.
+
+As of v0.9.0, `npm-trust` is a **pure CLI**: no `.claude-plugin/`, no
+bundled `skills/setup/`. The OIDC trust wizard skill has moved into the
+`solo-npm` marketplace plugin and is invoked as `/solo-npm:trust`.
 
 ## MCP: code-review-graph
 
@@ -86,9 +90,9 @@ The graph auto-updates via `PostToolUse` hooks; run `mcp__code-review-graph__bui
 
 ## Pre-publish
 
-For a normal release, invoke `/release-solo-npm` — it runs Phase A pre-flight (`/verify` + `npm-trust --doctor`), shows the plan with one `AskUserQuestion` approval, then commits / tags / watches CI / verifies provenance on the registry.
+For a normal release, invoke `/release` — it runs Phase A pre-flight (`/verify` + `npm-trust --doctor`), shows the plan with one `AskUserQuestion` approval, then commits / tags / watches CI / verifies provenance on the registry.
 
-The package is past first-publish (currently at v0.6.1 with OIDC trust configured). For a hypothetical fresh repo doing its first publish, see the "First publish (chicken-and-egg)" section in [`README.md`](README.md) — the classic-publish step is repo-author-driven; the trust-setup half is owned by the bundled `/npm-trust:setup` skill.
+The package is past first-publish (currently at v0.8.0 with OIDC trust configured). For a hypothetical fresh repo doing its first publish, see the "First publish (chicken-and-egg)" section in [`README.md`](README.md) — the classic-publish step is repo-author-driven; the trust-setup half is owned by the `/solo-npm:trust` skill in the [solo-npm marketplace plugin](https://github.com/gagle/solo-npm).
 
 ## Important guardrails
 

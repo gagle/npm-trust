@@ -1,8 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { constants as fsConstants } from "node:fs";
-import { copyFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { findUnconfiguredPackages } from "./diff.js";
 import { discoverPackages } from "./discover.js";
@@ -92,15 +89,17 @@ Options:
   --list                 list current trust status instead of configuring
   --only-new             filter to packages that have no OIDC trust yet or are unpublished
   --dry-run              show what would be done without making changes
-  --init-skill <name>    install a bundled Claude Code skill into ./.claude/skills
-                         (available: setup)
   --doctor               print a structured environment + per-package health report
   --json                 emit machine-readable JSON (only meaningful with --doctor)
   --help                 show this help message
 
 Note: 'npm trust' uses web-based 2FA only. The first call opens a browser
 authentication flow; on the npm site there's a "skip 2FA for the next 5
-minutes" option that lets bulk operations proceed without re-authenticating.`);
+minutes" option that lets bulk operations proceed without re-authenticating.
+
+For an interactive guided wizard with AskUserQuestion gates, install the
+solo-npm marketplace plugin and invoke /solo-npm:trust:
+  https://github.com/gagle/solo-npm`);
 }
 
 export interface ParseCliArgsResult {
@@ -120,7 +119,6 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       "dry-run": { type: "boolean", default: false },
       auto: { type: "boolean", default: false },
       "only-new": { type: "boolean", default: false },
-      "init-skill": { type: "string" },
       doctor: { type: "boolean", default: false },
       json: { type: "boolean", default: false },
       help: { type: "boolean", default: false },
@@ -147,7 +145,6 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       dryRun: Boolean(values["dry-run"]),
       auto: Boolean(values.auto),
       onlyNew: Boolean(values["only-new"]),
-      initSkill: values["init-skill"],
       doctor: Boolean(values.doctor),
       json: Boolean(values.json),
     },
@@ -208,51 +205,6 @@ function describeWorkspaceSource(source: WorkspaceSource): string {
   }
 }
 
-const KNOWN_SKILLS = ["setup"] as const;
-type KnownSkill = (typeof KNOWN_SKILLS)[number];
-
-function resolveBundledSkillPath(skill: KnownSkill): string {
-  return fileURLToPath(new URL(`../skills/${skill}/SKILL.md`, import.meta.url));
-}
-
-function isKnownSkill(name: string): name is KnownSkill {
-  return (KNOWN_SKILLS as ReadonlyArray<string>).includes(name);
-}
-
-async function initSkill(skill: string, cwd: string, logger: RuntimeLogger): Promise<number> {
-  if (!isKnownSkill(skill)) {
-    logger.error(`Error: unknown skill "${skill}". Available skills: ${KNOWN_SKILLS.join(", ")}`);
-    return 1;
-  }
-
-  const sourceFile = resolveBundledSkillPath(skill);
-  const targetDir = join(cwd, ".claude", "skills", skill);
-  const targetFile = join(targetDir, "SKILL.md");
-
-  await mkdir(targetDir, { recursive: true });
-
-  try {
-    await copyFile(sourceFile, targetFile, fsConstants.COPYFILE_EXCL);
-  } catch (err) {
-    if (isFsErrorWithCode(err, "EEXIST")) {
-      logger.error(`Error: ${targetFile} already exists. Remove it first to refresh.`);
-      return 1;
-    }
-    if (isFsErrorWithCode(err, "ENOENT")) {
-      logger.error(`Error: bundled skill not found at ${sourceFile}.`);
-      return 1;
-    }
-    throw err;
-  }
-
-  logger.log(`Installed ${skill} skill to ${targetFile}`);
-  return 0;
-}
-
-function isFsErrorWithCode(err: unknown, code: string): boolean {
-  return err instanceof Error && "code" in err && err.code === code;
-}
-
 export async function runCli(
   argv: ReadonlyArray<string>,
   logger: RuntimeLogger = console,
@@ -263,10 +215,6 @@ export async function runCli(
     if (helpRequested) {
       printUsage(logger);
       return 0;
-    }
-
-    if (options.initSkill !== undefined) {
-      return await initSkill(options.initSkill, process.cwd(), logger);
     }
 
     if (options.doctor) {

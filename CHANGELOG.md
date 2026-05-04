@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.9.0](https://github.com/gagle/npm-trust/compare/v0.8.0...v0.9.0) (2026-05-04)
+
+### Refocus on pure CLI — Breaking Changes
+
+`npm-trust` shrinks back to a pure CLI tool. The Claude Code plugin facet
+and the bundled `setup` skill have moved out, into the
+[`gagle/solo-npm`](https://github.com/gagle/solo-npm) marketplace plugin.
+
+The CLI tool and its setup wizard skill have different lifecycles. The
+CLI evolves around npm's APIs; the wizard evolves around AI-driven
+solo-dev workflows. Splitting them gives clean responsibilities —
+npm-trust ships a CLI usable by anyone (with or without Claude Code),
+and solo-npm bundles the AI workflows that orchestrate it.
+
+- **Removed `.claude-plugin/plugin.json`** — npm-trust is no longer a
+  Claude Code marketplace plugin.
+- **Removed `skills/setup/SKILL.md`** — the OIDC setup wizard skill has
+  moved to `solo-npm` and is renamed `trust`. Install solo-npm and
+  invoke `/solo-npm:trust`.
+- **Removed `--init-skill <name>` CLI flag.** Stale scripts that called
+  `pnpm exec npm-trust --init-skill setup` will get "unknown flag".
+
+### Migration
+
+If you previously ran `pnpm exec npm-trust --init-skill setup`:
+
+1. Add to your `.claude/settings.json`:
+   ```json
+   {
+     "extraKnownMarketplaces": {
+       "gllamas-skills": {
+         "source": { "source": "github", "repo": "gagle/solo-npm" }
+       }
+     },
+     "enabledPlugins": {
+       "solo-npm@gllamas-skills": true
+     }
+   }
+   ```
+2. Accept the install prompt on folder trust.
+3. Invoke as `/solo-npm:trust`.
+
+The CLI itself (`--auto`, `--doctor`, `--scope`, `--packages`, `--list`,
+`--workflow`, `--repo`, `--dry-run`, `--only-new`, `--json`) is unchanged.
+
 ## [0.8.0](https://github.com/gagle/npm-trust/compare/v0.7.0...v0.8.0) (2026-05-04)
 
 ### Features

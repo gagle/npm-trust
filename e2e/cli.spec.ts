@@ -565,29 +565,6 @@ describe("CLI e2e", () => {
     });
   });
 
-  describe("when --init-skill is invoked", () => {
-    let result: RunCliResult;
-
-    beforeEach(async () => {
-      result = await runCli({
-        args: ["--init-skill", "setup"],
-        workspaceFiles: { "README.md": "scratch" },
-      });
-    });
-
-    it("should exit 0", () => {
-      expect(result.exitCode).toBe(0);
-    });
-
-    it("should report the install destination", () => {
-      expect(result.stdout).toContain("Installed setup skill");
-    });
-
-    it("should not invoke npm", () => {
-      expect(result.fakeNpmCalls).toStrictEqual([]);
-    });
-  });
-
   describe("when --doctor --json is invoked in a single-package directory", () => {
     let result: RunCliResult;
 
@@ -610,21 +587,4 @@ describe("CLI e2e", () => {
     });
   });
 
-  describe("when --init-skill runs twice in the same directory", () => {
-    let secondResult: RunCliResult;
-
-    beforeEach(async () => {
-      secondResult = await runCli({
-        args: ["--init-skill", "setup"],
-        workspaceFiles: {
-          ".claude/skills/setup/SKILL.md": "pre-existing content",
-        },
-      });
-    });
-
-    it("should refuse to overwrite the existing file", () => {
-      expect(secondResult.exitCode).toBe(1);
-      expect(secondResult.stderr).toContain("already exists");
-    });
-  });
 });

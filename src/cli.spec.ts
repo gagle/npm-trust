@@ -1,4 +1,3 @@
-import { constants as fsConstants } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const spawnSyncMock = vi.fn();
@@ -7,22 +6,11 @@ const discoverFromCwdMock = vi.fn();
 const findUnconfiguredPackagesMock = vi.fn();
 const configureTrustMock = vi.fn();
 const listTrustMock = vi.fn();
-const mkdirMock = vi.fn();
-const copyFileMock = vi.fn();
 const runDoctorMock = vi.fn();
 
 vi.mock("node:child_process", () => ({
   spawnSync: (...args: ReadonlyArray<unknown>) => spawnSyncMock(...args),
 }));
-
-vi.mock("node:fs/promises", () => ({
-  mkdir: (...args: ReadonlyArray<unknown>) => mkdirMock(...args),
-  copyFile: (...args: ReadonlyArray<unknown>) => copyFileMock(...args),
-}));
-
-function fsError(code: string): Error {
-  return Object.assign(new Error(code), { code });
-}
 
 vi.mock("./discover.js", () => ({
   discoverPackages: (...args: ReadonlyArray<unknown>) => discoverPackagesMock(...args),
@@ -969,167 +957,6 @@ describe("runCli", () => {
 
     it("should call listTrust with the filtered list only", () => {
       expect(listTrustMock).toHaveBeenCalledWith(expect.objectContaining({ packages: ["@x/new"] }));
-    });
-  });
-
-  describe("when --init-skill installs into a fresh directory", () => {
-    let logger: CapturingLogger;
-    let exitCode: number;
-
-    beforeEach(async () => {
-      mkdirMock.mockResolvedValueOnce(undefined);
-      copyFileMock.mockResolvedValueOnce(undefined);
-      logger = createLogger();
-      exitCode = await runCli(["--init-skill", "setup"], logger);
-    });
-
-    it("should exit 0", () => {
-      expect(exitCode).toBe(0);
-    });
-
-    it("should create the target directory recursively", () => {
-      expect(mkdirMock).toHaveBeenCalledWith(
-        expect.stringContaining(".claude/skills/setup"),
-        { recursive: true },
-      );
-    });
-
-    it("should copy with the COPYFILE_EXCL flag so overwrites are refused atomically", () => {
-      expect(copyFileMock).toHaveBeenCalledWith(
-        expect.stringContaining("skills/setup/SKILL.md"),
-        expect.stringContaining(".claude/skills/setup/SKILL.md"),
-        fsConstants.COPYFILE_EXCL,
-      );
-    });
-
-    it("should log the install destination", () => {
-      expect(logger.logs[0]).toContain("Installed setup skill");
-    });
-
-    it("should not run the npm version check first", () => {
-      expect(spawnSyncMock).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("when --init-skill cannot find the bundled source", () => {
-    let logger: CapturingLogger;
-    let exitCode: number;
-
-    beforeEach(async () => {
-      mkdirMock.mockResolvedValueOnce(undefined);
-      copyFileMock.mockRejectedValueOnce(fsError("ENOENT"));
-      logger = createLogger();
-      exitCode = await runCli(["--init-skill", "setup"], logger);
-    });
-
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
-    });
-
-    it("should log a message about the missing bundled skill", () => {
-      expect(logger.errors[0]).toContain("bundled skill not found");
-    });
-  });
-
-  describe("when --init-skill finds an existing target file", () => {
-    let logger: CapturingLogger;
-    let exitCode: number;
-
-    beforeEach(async () => {
-      mkdirMock.mockResolvedValueOnce(undefined);
-      copyFileMock.mockRejectedValueOnce(fsError("EEXIST"));
-      logger = createLogger();
-      exitCode = await runCli(["--init-skill", "setup"], logger);
-    });
-
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
-    });
-
-    it("should log a message about the existing file", () => {
-      expect(logger.errors[0]).toContain("already exists");
-    });
-  });
-
-  describe("when --init-skill encounters an unexpected fs error", () => {
-    let logger: CapturingLogger;
-    let exitCode: number;
-
-    beforeEach(async () => {
-      mkdirMock.mockResolvedValueOnce(undefined);
-      copyFileMock.mockRejectedValueOnce(fsError("EACCES"));
-      logger = createLogger();
-      exitCode = await runCli(["--init-skill", "setup"], logger);
-    });
-
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
-    });
-
-    it("should log the underlying error code", () => {
-      expect(logger.errors[0]).toBe("Error: EACCES");
-    });
-  });
-
-  describe("when --init-skill encounters a non-Error rejection", () => {
-    let logger: CapturingLogger;
-    let exitCode: number;
-
-    beforeEach(async () => {
-      mkdirMock.mockResolvedValueOnce(undefined);
-      copyFileMock.mockRejectedValueOnce("plain string failure");
-      logger = createLogger();
-      exitCode = await runCli(["--init-skill", "setup"], logger);
-    });
-
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
-    });
-
-    it("should coerce the rejection value into the error log", () => {
-      expect(logger.errors[0]).toBe("Error: plain string failure");
-    });
-  });
-
-  describe("when --init-skill is given an unknown skill name", () => {
-    let logger: CapturingLogger;
-    let exitCode: number;
-
-    beforeEach(async () => {
-      logger = createLogger();
-      exitCode = await runCli(["--init-skill", "bogus"], logger);
-    });
-
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
-    });
-
-    it("should log the available skills", () => {
-      expect(logger.errors[0]).toContain('unknown skill "bogus"');
-      expect(logger.errors[0]).toContain("setup");
-    });
-
-    it("should not attempt to create any directory", () => {
-      expect(mkdirMock).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("when --init-skill is passed without a value", () => {
-    let logger: CapturingLogger;
-    let exitCode: number;
-
-    beforeEach(async () => {
-      logger = createLogger();
-      exitCode = await runCli(["--init-skill"], logger);
-    });
-
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
-    });
-
-    it("should log a parseArgs-style error about the missing value", () => {
-      expect(logger.errors[0]).toContain("Error:");
-      expect(logger.errors[0]).toContain("init-skill");
     });
   });
 

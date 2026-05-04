@@ -19,11 +19,12 @@
 
 > **Built for LLM consumption.** Every entry point is shaped for an agent to drive end to end:
 >
-> - A bundled **Claude Code skill** (`npx npm-trust --init-skill`) that walks an agent through detect → diff → manual auth pauses → configure → verify, with no per-project setup.
 > - **Filesystem auto-detection** (`--auto`) that removes the "what packages live here?" guesswork — works for pnpm/npm/yarn workspaces and single-package repos, picks up scope from package names automatically.
 > - **`--only-new`** for incremental setup so the agent doesn't waste calls re-checking packages that are already trust-configured.
+> - **`--doctor`** for a structured environment + per-package health report (JSON via `--json`); a Claude skill or other tooling can branch on the report's issue codes.
 > - A **typed programmatic API** alongside the CLI (`discoverFromCwd`, `checkPackageStatuses`, `findUnconfiguredPackages`, `configureTrust`, …) so an agent can choose between spawning the binary or importing the library — same primitives, same data shapes.
 > - **Deterministic output**: every package status comes back as one of `configured | already | not_published | auth_failed | error`, so an agent can branch on the result without parsing prose.
+> - For an interactive guided wizard with AskUserQuestion gates, install the [`gagle/solo-npm`](https://github.com/gagle/solo-npm) marketplace plugin and invoke `/solo-npm:trust` — that skill orchestrates this CLI.
 
 ## The problem
 
@@ -338,61 +339,35 @@ versioned; consumers should switch on it before reading other fields.
 
 ## Use from a Claude Code agent
 
-`npm-trust` ships with a Claude Code skill that wraps the wizard flow:
-detect packages → diff → walk the user through `npm login` and any required
-publishes → configure → verify. The skill is a single Markdown file with
-plain bash steps; any agent that loads `.claude/skills/` can use it.
-
-The CLI installs it for you:
-
-```bash
-npx npm-trust --init-skill setup
-```
-
-This copies the bundled `skills/setup/SKILL.md` to
-`./.claude/skills/setup/SKILL.md`. Refuses to overwrite an existing
-file — delete it first if you want to refresh.
-
-If you'd rather copy by hand:
-
-```bash
-mkdir -p .claude/skills
-cp -r node_modules/npm-trust/skills/setup .claude/skills/
-```
-
-In Claude Code, invoke `/npm-trust:setup` (or just describe the task — the
-agent will pick the skill up automatically).
-
-The source lives at [`skills/setup/SKILL.md`](skills/setup/SKILL.md)
-in this repo if you want to read it without installing first.
-
-### As a Claude Code marketplace plugin
-
-`npm-trust` is also distributed as a Claude Code plugin via the
-`gllamas-skills` marketplace. The setup skill loads automatically:
+The CLI is callable directly from any agent that can spawn shell
+commands — `npx npm-trust --auto --repo <owner/repo> --workflow
+release.yml`, etc. For an interactive guided wizard with AskUserQuestion
+gates, install the [`gagle/solo-npm`](https://github.com/gagle/solo-npm)
+marketplace plugin:
 
 ```
 /plugin marketplace add gagle/solo-npm
-/plugin install npm-trust@gllamas-skills
+/plugin install solo-npm@gllamas-skills
 ```
 
-After install, `/npm-trust:setup` is available without copying the
-skill file into your repo. Use this path if you don't want the skill
-content in your git history. The CLI's `--init-skill setup` flow
-(above) is the alternative for repos that want to track the skill.
+Then invoke `/solo-npm:trust` for the OIDC trust wizard (which calls
+this CLI under the hood). Or `/solo-npm:init` for the full bootstrap
+umbrella that scaffolds release.yml + publishConfig + .nvmrc + consumer
+wrappers and then chains into trust.
 
 ## Release workflow for solo AI devs
 
-`npm-trust` is the trust half of an opinionated release workflow built for
-solo developers (or small groups of LLM agents) shipping AI-generated code.
-The release half — a Claude Code skill that drives commit → tag → CI publish
-in one approval — lives in the sibling repo
-[`gagle/release-solo-npm`](https://github.com/gagle/release-solo-npm),
-distributed as a Claude Code marketplace plugin.
+`npm-trust` is the OIDC-trust primitive in an opinionated release
+workflow built for solo developers (or small groups of LLM agents)
+shipping AI-generated code. The full lifecycle — bootstrap, release,
+verify, status, audit, deps — lives in the
+[`gagle/solo-npm`](https://github.com/gagle/solo-npm) marketplace plugin
+as seven Claude Code skills. solo-npm's `/solo-npm:trust` skill is what
+calls this CLI.
 
 ```
-/plugin marketplace add gagle/release-solo-npm
-/plugin install release-solo-npm@gllamas-skills
+/plugin marketplace add gagle/solo-npm
+/plugin install solo-npm@gllamas-skills
 ```
 
 ## First publish (chicken-and-egg)
@@ -417,8 +392,8 @@ The bootstrap path:
    ```bash
    pnpm exec npm-trust --auto --repo <owner/repo> --workflow release.yml
    ```
-   Or run the bundled `/npm-trust:setup` skill in Claude Code for the
-   full guided flow (auth gate, dry-run, configure, verify).
+   Or invoke `/solo-npm:trust` in Claude Code for the full guided flow
+   (auth gate, dry-run, configure, verify).
 4. **Set `package.json#publishConfig`**:
    ```json
    "publishConfig": {
@@ -431,7 +406,7 @@ The bootstrap path:
    OIDC + provenance.
 
 Step 2 is the only place a human is at the keyboard for the bootstrap
-beyond the single `AskUserQuestion` approval in `/release-solo-npm`.
+beyond the single `AskUserQuestion` approval in `/solo-npm:release`.
 Everything else is agent-driven once trust is configured.
 
 ## Environment variables
