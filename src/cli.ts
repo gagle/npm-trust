@@ -93,7 +93,7 @@ Options:
   --only-new             filter to packages that have no OIDC trust yet or are unpublished
   --dry-run              show what would be done without making changes
   --init-skill <name>    install a bundled Claude Code skill into ./.claude/skills
-                         (available: setup-npm-trust)
+                         (available: npm-trust-setup)
   --doctor               print a structured environment + per-package health report
   --json                 emit machine-readable JSON (only meaningful with --doctor)
   --help                 show this help message
@@ -208,7 +208,7 @@ function describeWorkspaceSource(source: WorkspaceSource): string {
   }
 }
 
-const KNOWN_SKILLS = ["setup-npm-trust"] as const;
+const KNOWN_SKILLS = ["npm-trust-setup"] as const;
 type KnownSkill = (typeof KNOWN_SKILLS)[number];
 
 function resolveBundledSkillPath(skill: KnownSkill): string {

@@ -1,6 +1,6 @@
 {
   "name": "npm-trust",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Bulk-configure npm OIDC Trusted Publishing for all packages in a scope",
   "type": "module",
   "bin": {
@@ -27,7 +27,7 @@
     "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=24.0.0",
+    "node": ">=24",
     "npm": ">=11.5.1"
   },
   "packageManager": "pnpm@10.33.0",

@@ -349,21 +349,21 @@ The CLI installs it for you:
 npx npm-trust --init-skill
 ```
 
-This copies the bundled `skills/setup-npm-trust/SKILL.md` to
-`./.claude/skills/setup-npm-trust/SKILL.md`. Refuses to overwrite an existing
+This copies the bundled `skills/npm-trust-setup/SKILL.md` to
+`./.claude/skills/npm-trust-setup/SKILL.md`. Refuses to overwrite an existing
 file — delete it first if you want to refresh.
 
 If you'd rather copy by hand:
 
 ```bash
 mkdir -p .claude/skills
-cp -r node_modules/npm-trust/skills/setup-npm-trust .claude/skills/
+cp -r node_modules/npm-trust/skills/npm-trust-setup .claude/skills/
 ```
 
-In Claude Code, invoke `/setup-npm-trust` (or just describe the task — the
+In Claude Code, invoke `/npm-trust-setup` (or just describe the task — the
 agent will pick the skill up automatically).
 
-The source lives at [`skills/setup-npm-trust/SKILL.md`](skills/setup-npm-trust/SKILL.md)
+The source lives at [`skills/npm-trust-setup/SKILL.md`](skills/npm-trust-setup/SKILL.md)
 in this repo if you want to read it without installing first.
 
 ## Release workflow for solo AI devs
@@ -380,9 +380,44 @@ distributed as a Claude Code marketplace plugin.
 /plugin install release-solo-npm@gllamas-skills
 ```
 
-The full architecture (release skill, default `/verify-solo-npm` skill, future
-bootstrap CLI, multi-repo composition, why this works for AI-driven solo
-dev) is documented in [`docs/bootstrap.md`](docs/bootstrap.md).
+## First publish (chicken-and-egg)
+
+OIDC trusted publishing requires the package to **already exist** on the
+npm registry before trust can be configured (npm needs the package
+record to attach trust to). That creates a chicken-and-egg: you can't
+publish via OIDC + provenance until trust is set up, but trust can't be
+set up until the package exists.
+
+The bootstrap path:
+
+1. Develop the MVP locally; bump `package.json#version` to the initial
+   release (e.g., `0.1.0`).
+2. **Classic publish, locally, ONE time**:
+   ```bash
+   npm login                           # web 2FA, browser flow
+   npm publish --access public         # without --provenance
+   ```
+   The package now exists on npm.
+3. **Configure OIDC trust** via this CLI:
+   ```bash
+   pnpm exec npm-trust --auto --repo <owner/repo> --workflow release.yml
+   ```
+   Or run the bundled `npm-trust-setup` skill in Claude Code for the
+   full guided flow (auth gate, dry-run, configure, verify).
+4. **Set `package.json#publishConfig`**:
+   ```json
+   "publishConfig": {
+     "access": "public",
+     "provenance": true
+   }
+   ```
+5. **From here, every subsequent release uses the tag-triggered CI
+   workflow** — no more classic publishes. CI handles the publish via
+   OIDC + provenance.
+
+Step 2 is the only place a human is at the keyboard for the bootstrap
+beyond the single `AskUserQuestion` approval in `/release-solo-npm`.
+Everything else is agent-driven once trust is configured.
 
 ## Environment variables
 

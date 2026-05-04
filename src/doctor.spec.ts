@@ -34,6 +34,17 @@ vi.mock("./discover-workspace.js", () => ({
   discoverFromCwd: (...args: ReadonlyArray<unknown>) => discoverFromCwdMock(...args),
 }));
 
+const readNpmrcMock = vi.fn();
+const readReleaseWorkflowMock = vi.fn();
+
+vi.mock("./npmrc.js", () => ({
+  readNpmrc: (...args: ReadonlyArray<unknown>) => readNpmrcMock(...args),
+}));
+
+vi.mock("./workflow.js", () => ({
+  readReleaseWorkflow: (...args: ReadonlyArray<unknown>) => readReleaseWorkflowMock(...args),
+}));
+
 const { collectReport, formatDoctorReportHuman, formatDoctorReportJson, runDoctor } =
   await import("./doctor.js");
 
@@ -137,6 +148,8 @@ function issueCodes(report: DoctorReport): ReadonlyArray<DoctorIssueCode> {
 
 beforeEach(() => {
   readFileSyncMock.mockReturnValue(JSON.stringify({ version: "0.4.0" }));
+  readNpmrcMock.mockResolvedValue(null);
+  readReleaseWorkflowMock.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -924,6 +937,306 @@ describe("collectReport", () => {
 
     it("should NOT produce REGISTRY_PROVENANCE_CONFLICT (and should not crash)", () => {
       expect(issueCodes(report)).not.toContain("REGISTRY_PROVENANCE_CONFLICT");
+    });
+  });
+
+  describe("when private registry is set AND workflow has id-token: write", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { registry: "https://npm.example.com/" },
+        }),
+      );
+      readReleaseWorkflowMock.mockResolvedValueOnce({
+        hasIdTokenWrite: true,
+        setupNodeRegistryUrl: "https://npm.example.com/",
+        setupNodeAlwaysAuth: false,
+        publishStepEnvAuthSecret: null,
+      });
+      setupHealthyEnvironment();
+      report = await collectReport({
+        cwd: "/tmp/x",
+        workflow: "release.yml",
+        logger: createLogger(),
+      });
+    });
+
+    it("should produce WORKFLOW_AUTH_MISMATCH", () => {
+      expect(issueCodes(report)).toContain("WORKFLOW_AUTH_MISMATCH");
+    });
+  });
+
+  describe("when public registry is set AND workflow uses NODE_AUTH_TOKEN without id-token", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { access: "public", provenance: true },
+        }),
+      );
+      readReleaseWorkflowMock.mockResolvedValueOnce({
+        hasIdTokenWrite: false,
+        setupNodeRegistryUrl: "https://registry.npmjs.org",
+        setupNodeAlwaysAuth: false,
+        publishStepEnvAuthSecret: "NPM_TOKEN",
+      });
+      setupHealthyEnvironment();
+      report = await collectReport({
+        cwd: "/tmp/x",
+        workflow: "release.yml",
+        logger: createLogger(),
+      });
+    });
+
+    it("should produce WORKFLOW_AUTH_MISMATCH", () => {
+      expect(issueCodes(report)).toContain("WORKFLOW_AUTH_MISMATCH");
+    });
+  });
+
+  describe("when private registry is set AND workflow uses NODE_AUTH_TOKEN with secret", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { registry: "https://npm.example.com/" },
+        }),
+      );
+      readReleaseWorkflowMock.mockResolvedValueOnce({
+        hasIdTokenWrite: false,
+        setupNodeRegistryUrl: "https://npm.example.com/",
+        setupNodeAlwaysAuth: true,
+        publishStepEnvAuthSecret: "NPM_TOKEN",
+      });
+      setupHealthyEnvironment();
+      report = await collectReport({
+        cwd: "/tmp/x",
+        workflow: "release.yml",
+        logger: createLogger(),
+      });
+    });
+
+    it("should produce WORKFLOW_MISSING_AUTH_SECRET surfacing the secret name", () => {
+      const issue = report.issues.find((i) => i.code === "WORKFLOW_MISSING_AUTH_SECRET");
+      expect(issue?.message).toContain("NPM_TOKEN");
+    });
+
+    it("should NOT produce WORKFLOW_AUTH_MISMATCH (the workflow + publishConfig agree on private)", () => {
+      expect(issueCodes(report)).not.toContain("WORKFLOW_AUTH_MISMATCH");
+    });
+  });
+
+  describe("when --workflow flag is not passed (releaseWorkflow not loaded)", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { registry: "https://npm.example.com/" },
+        }),
+      );
+      setupHealthyEnvironment();
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should not produce any WORKFLOW_AUTH_* codes (no workflow snapshot to inspect)", () => {
+      expect(issueCodes(report)).not.toContain("WORKFLOW_AUTH_MISMATCH");
+      expect(issueCodes(report)).not.toContain("WORKFLOW_MISSING_AUTH_SECRET");
+    });
+  });
+
+  describe("when .npmrc has a literal _authToken", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readNpmrcMock.mockResolvedValueOnce({
+        registry: null,
+        scopes: [],
+        authRefs: [
+          {
+            host: "//npm.example.com/",
+            value: "npm_literalLeak123",
+            lineNumber: 5,
+            isLiteral: true,
+          },
+        ],
+      });
+      setupHealthyEnvironment();
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should produce NPMRC_LITERAL_TOKEN with the line number", () => {
+      const issue = report.issues.find((i) => i.code === "NPMRC_LITERAL_TOKEN");
+      expect(issue?.message).toContain("line 5");
+    });
+
+    it("should not print the literal token value in the message", () => {
+      const issue = report.issues.find((i) => i.code === "NPMRC_LITERAL_TOKEN");
+      expect(issue?.message).not.toContain("npm_literalLeak123");
+    });
+  });
+
+  describe("when .npmrc has a ${VAR} _authToken (not literal)", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readNpmrcMock.mockResolvedValueOnce({
+        registry: null,
+        scopes: [],
+        authRefs: [
+          {
+            host: "//npm.example.com/",
+            value: "${NPM_TOKEN}",
+            lineNumber: 3,
+            isLiteral: false,
+          },
+        ],
+      });
+      setupHealthyEnvironment();
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should NOT produce NPMRC_LITERAL_TOKEN", () => {
+      expect(issueCodes(report)).not.toContain("NPMRC_LITERAL_TOKEN");
+    });
+  });
+
+  describe("when .npmrc registry diverges from publishConfig.registry", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { registry: "https://npm.example.com/" },
+        }),
+      );
+      readNpmrcMock.mockResolvedValueOnce({
+        registry: "https://other-registry.example.org/",
+        scopes: [],
+        authRefs: [],
+      });
+      setupHealthyEnvironment();
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should produce NPMRC_REGISTRY_DIVERGES", () => {
+      expect(issueCodes(report)).toContain("NPMRC_REGISTRY_DIVERGES");
+    });
+  });
+
+  describe("when .npmrc has a scope mapping that matches the package's scope", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { registry: "https://npm.example.com/" },
+        }),
+      );
+      readNpmrcMock.mockResolvedValueOnce({
+        registry: null,
+        scopes: [{ scope: "@my-org", registry: "https://npm.example.com/" }],
+        authRefs: [],
+      });
+      discoverFromCwdMock.mockResolvedValueOnce({
+        source: "single-package",
+        packages: ["@my-org/widget"],
+      });
+      stubNodeVersion("24.14.1");
+      setupSpawnRoutes({
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
+      });
+      globMock.mockImplementation((pattern: string) =>
+        pattern.endsWith(".yml")
+          ? asyncIterable([".github/workflows/release.yml"])
+          : asyncIterable([]),
+      );
+      checkPackageStatusesAsyncMock.mockResolvedValueOnce([
+        {
+          pkg: "@my-org/widget",
+          trustConfigured: true,
+          published: true,
+          hasProvenance: true,
+        },
+      ]);
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should NOT produce NPMRC_REGISTRY_DIVERGES (scope mapping matches publishConfig)", () => {
+      expect(issueCodes(report)).not.toContain("NPMRC_REGISTRY_DIVERGES");
+    });
+  });
+
+  describe("when package is scoped but .npmrc has no matching scope mapping", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { registry: "https://npm.example.com/" },
+        }),
+      );
+      readNpmrcMock.mockResolvedValueOnce({
+        registry: "https://other.example.org/",
+        scopes: [{ scope: "@unrelated", registry: "https://other-scope.example.org/" }],
+        authRefs: [],
+      });
+      discoverFromCwdMock.mockResolvedValueOnce({
+        source: "single-package",
+        packages: ["@my-org/widget"],
+      });
+      stubNodeVersion("24.14.1");
+      setupSpawnRoutes({
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
+      });
+      globMock.mockImplementation(() => asyncIterable([]));
+      checkPackageStatusesAsyncMock.mockResolvedValueOnce([
+        {
+          pkg: "@my-org/widget",
+          trustConfigured: true,
+          published: true,
+          hasProvenance: true,
+        },
+      ]);
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should fall back to the top-level npmrc registry and produce NPMRC_REGISTRY_DIVERGES", () => {
+      expect(issueCodes(report)).toContain("NPMRC_REGISTRY_DIVERGES");
+    });
+  });
+
+  describe("when .npmrc registry matches publishConfig.registry (with trailing slash difference)", () => {
+    let report: DoctorReport;
+
+    beforeEach(async () => {
+      readFileSyncMock.mockReturnValue(
+        JSON.stringify({
+          version: "0.6.0",
+          publishConfig: { registry: "https://npm.example.com/" },
+        }),
+      );
+      readNpmrcMock.mockResolvedValueOnce({
+        registry: "https://npm.example.com",
+        scopes: [],
+        authRefs: [],
+      });
+      setupHealthyEnvironment();
+      report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+    });
+
+    it("should NOT produce NPMRC_REGISTRY_DIVERGES (normalized comparison)", () => {
+      expect(issueCodes(report)).not.toContain("NPMRC_REGISTRY_DIVERGES");
     });
   });
 

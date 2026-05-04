@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 
-const SKILL_PATH = fileURLToPath(new URL("../skills/setup-npm-trust/SKILL.md", import.meta.url));
+const SKILL_PATH = fileURLToPath(new URL("../skills/npm-trust-setup/SKILL.md", import.meta.url));
 
-describe("bundled setup-npm-trust skill", () => {
+describe("bundled npm-trust-setup skill", () => {
   let content: string;
 
   beforeAll(() => {
@@ -17,7 +17,7 @@ describe("bundled setup-npm-trust skill", () => {
     });
 
     it("should declare the skill name", () => {
-      expect(content).toMatch(/^name:\s*setup-npm-trust$/m);
+      expect(content).toMatch(/^name:\s*npm-trust-setup$/m);
     });
 
     it("should include a non-empty description", () => {

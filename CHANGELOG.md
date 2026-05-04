@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.7.0](https://github.com/gagle/npm-trust/compare/v0.6.1...v0.7.0) (2026-05-04)
+
+### Migration
+
+The bundled skill rename has a single user-facing breakage: anyone who currently runs
+
+```bash
+pnpm exec npm-trust --init-skill setup-npm-trust
+```
+
+needs to use the new value:
+
+```bash
+pnpm exec npm-trust --init-skill npm-trust-setup
+```
+
+Existing `.claude/skills/setup-npm-trust/` directories on disk continue to work as Claude Code skills (the slash command is driven by frontmatter, not folder name) — but for consistency, rename the local folder to `.claude/skills/npm-trust-setup/` and update the SKILL.md frontmatter `name` to `npm-trust-setup`.
+
+### Features
+
+- new doctor checks driven by the bundled skill rename + private-registry support: `WORKFLOW_AUTH_MISMATCH` (workflow `id-token: write` vs custom `publishConfig.registry`, or vice-versa), `NPMRC_REGISTRY_DIVERGES` (`.npmrc` registry / scope mapping disagrees with `publishConfig.registry`), `NPMRC_LITERAL_TOKEN` (literal `_authToken` value committed to `.npmrc`), `WORKFLOW_MISSING_AUTH_SECRET` (private-registry workflow surfaces the GitHub Actions secret name `NODE_AUTH_TOKEN: ${{ secrets.<NAME> }}` for the user to verify). New parsers in `src/npmrc.ts` and `src/workflow.ts` (zero runtime deps; hand-rolled regex).
+
+### Breaking Changes
+
+- bundled skill renamed `setup-npm-trust` → `npm-trust-setup` (namespace-first, matching the `npm-trust:setup` script convention). Folder, frontmatter `name`, slash command, and `--init-skill <name>` flag value all rename together.
+
+### Refactor
+
+- delete `docs/bootstrap.md`. The "First publish (chicken-and-egg)" content moved to `README.md`. The "custom vs public registries" trade-off content was relocated earlier into the `release-solo-npm` marketplace plugin's README. The bootstrap-CLI vision is dropped entirely (the marketplace plugin's `/init-solo-npm` skill, when it ships, replaces that vision).
+- `package.json#engines.node` normalized to `>=24`. `release.yml` switched from hardcoded `node-version: 24` to `node-version-file: .nvmrc` for DRY.
+
 ## [0.6.1](https://github.com/gagle/npm-trust/compare/v0.6.0...v0.6.1) (2026-05-03)
 
 **First proper provenance-attested release under the `npm-trust` name.**

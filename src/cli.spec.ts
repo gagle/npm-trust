@@ -980,7 +980,7 @@ describe("runCli", () => {
       mkdirMock.mockResolvedValueOnce(undefined);
       copyFileMock.mockResolvedValueOnce(undefined);
       logger = createLogger();
-      exitCode = await runCli(["--init-skill", "setup-npm-trust"], logger);
+      exitCode = await runCli(["--init-skill", "npm-trust-setup"], logger);
     });
 
     it("should exit 0", () => {
@@ -989,21 +989,21 @@ describe("runCli", () => {
 
     it("should create the target directory recursively", () => {
       expect(mkdirMock).toHaveBeenCalledWith(
-        expect.stringContaining(".claude/skills/setup-npm-trust"),
+        expect.stringContaining(".claude/skills/npm-trust-setup"),
         { recursive: true },
       );
     });
 
     it("should copy with the COPYFILE_EXCL flag so overwrites are refused atomically", () => {
       expect(copyFileMock).toHaveBeenCalledWith(
-        expect.stringContaining("skills/setup-npm-trust/SKILL.md"),
-        expect.stringContaining(".claude/skills/setup-npm-trust/SKILL.md"),
+        expect.stringContaining("skills/npm-trust-setup/SKILL.md"),
+        expect.stringContaining(".claude/skills/npm-trust-setup/SKILL.md"),
         fsConstants.COPYFILE_EXCL,
       );
     });
 
     it("should log the install destination", () => {
-      expect(logger.logs[0]).toContain("Installed setup-npm-trust skill");
+      expect(logger.logs[0]).toContain("Installed npm-trust-setup skill");
     });
 
     it("should not run the npm version check first", () => {
@@ -1019,7 +1019,7 @@ describe("runCli", () => {
       mkdirMock.mockResolvedValueOnce(undefined);
       copyFileMock.mockRejectedValueOnce(fsError("ENOENT"));
       logger = createLogger();
-      exitCode = await runCli(["--init-skill", "setup-npm-trust"], logger);
+      exitCode = await runCli(["--init-skill", "npm-trust-setup"], logger);
     });
 
     it("should exit 1", () => {
@@ -1039,7 +1039,7 @@ describe("runCli", () => {
       mkdirMock.mockResolvedValueOnce(undefined);
       copyFileMock.mockRejectedValueOnce(fsError("EEXIST"));
       logger = createLogger();
-      exitCode = await runCli(["--init-skill", "setup-npm-trust"], logger);
+      exitCode = await runCli(["--init-skill", "npm-trust-setup"], logger);
     });
 
     it("should exit 1", () => {
@@ -1059,7 +1059,7 @@ describe("runCli", () => {
       mkdirMock.mockResolvedValueOnce(undefined);
       copyFileMock.mockRejectedValueOnce(fsError("EACCES"));
       logger = createLogger();
-      exitCode = await runCli(["--init-skill", "setup-npm-trust"], logger);
+      exitCode = await runCli(["--init-skill", "npm-trust-setup"], logger);
     });
 
     it("should exit 1", () => {
@@ -1079,7 +1079,7 @@ describe("runCli", () => {
       mkdirMock.mockResolvedValueOnce(undefined);
       copyFileMock.mockRejectedValueOnce("plain string failure");
       logger = createLogger();
-      exitCode = await runCli(["--init-skill", "setup-npm-trust"], logger);
+      exitCode = await runCli(["--init-skill", "npm-trust-setup"], logger);
     });
 
     it("should exit 1", () => {
@@ -1106,7 +1106,7 @@ describe("runCli", () => {
 
     it("should log the available skills", () => {
       expect(logger.errors[0]).toContain('unknown skill "bogus"');
-      expect(logger.errors[0]).toContain("setup-npm-trust");
+      expect(logger.errors[0]).toContain("npm-trust-setup");
     });
 
     it("should not attempt to create any directory", () => {

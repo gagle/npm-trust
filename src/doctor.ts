@@ -5,6 +5,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkPackageStatusesAsync } from "./diff.js";
 import { discoverFromCwd } from "./discover-workspace.js";
+import { readNpmrc, type NpmrcSnapshot } from "./npmrc.js";
+import { readReleaseWorkflow, type WorkflowSnapshot } from "./workflow.js";
 import type {
   DiscoveredWorkspace,
   DoctorIssue,
@@ -49,6 +51,11 @@ export async function collectReport(options: RunDoctorOptions): Promise<DoctorRe
   const workflows = await listWorkflows(options.cwd);
   const packages = await buildPackageEntries(workspace);
   const publishConfig = inspectPublishConfig(options.cwd);
+  const npmrc = await readNpmrc(options.cwd);
+  const releaseWorkflow =
+    options.workflow !== undefined && workflows.includes(options.workflow)
+      ? await readReleaseWorkflow(options.cwd, options.workflow)
+      : null;
   const issues = collectIssues({
     runtime,
     auth,
@@ -57,6 +64,8 @@ export async function collectReport(options: RunDoctorOptions): Promise<DoctorRe
     workflows,
     packages,
     publishConfig,
+    npmrc,
+    releaseWorkflow,
     options,
   });
   const summary = summarizeReport(packages, issues);
@@ -331,6 +340,8 @@ interface IssueCollectionInput {
   readonly workflows: ReadonlyArray<string>;
   readonly packages: ReadonlyArray<PackageDoctorEntry>;
   readonly publishConfig: PublishConfigSnapshot;
+  readonly npmrc: NpmrcSnapshot | null;
+  readonly releaseWorkflow: WorkflowSnapshot | null;
   readonly options: RunDoctorOptions;
 }
 
@@ -476,6 +487,8 @@ function collectIssues(input: IssueCollectionInput): ReadonlyArray<DoctorIssue> 
       relatedField: "publishConfig",
     });
   }
+  collectWorkflowAuthIssues(input, issues);
+  collectNpmrcIssues(input, issues);
   if (input.options.conflictingFlags !== undefined && input.options.conflictingFlags.length > 0) {
     for (const flag of input.options.conflictingFlags) {
       issues.push({
@@ -487,6 +500,109 @@ function collectIssues(input: IssueCollectionInput): ReadonlyArray<DoctorIssue> 
     }
   }
   return issues;
+}
+
+function collectWorkflowAuthIssues(
+  input: IssueCollectionInput,
+  issues: Array<DoctorIssue>,
+): void {
+  if (input.releaseWorkflow === null) {
+    return;
+  }
+  const isPrivateRegistry =
+    input.publishConfig.registry !== null && !isUsualRegistry(input.publishConfig.registry);
+  const workflow = input.releaseWorkflow;
+
+  if (isPrivateRegistry && workflow.hasIdTokenWrite) {
+    issues.push({
+      severity: "warn",
+      code: "WORKFLOW_AUTH_MISMATCH",
+      message:
+        "Workflow has `id-token: write` (OIDC) but publishConfig.registry points at a private registry; OIDC trusted publishing only works on public npm",
+      remedy:
+        "Drop `id-token: write` from the workflow's permissions and use `NODE_AUTH_TOKEN` from a GitHub secret instead",
+      relatedField: "releaseWorkflow",
+    });
+  } else if (
+    !isPrivateRegistry &&
+    !workflow.hasIdTokenWrite &&
+    workflow.publishStepEnvAuthSecret !== null
+  ) {
+    issues.push({
+      severity: "warn",
+      code: "WORKFLOW_AUTH_MISMATCH",
+      message:
+        "Workflow uses NODE_AUTH_TOKEN (token auth) but publishConfig is public; expected `id-token: write` for OIDC trusted publishing",
+      remedy:
+        "Add `id-token: write` to the workflow's permissions and drop the NODE_AUTH_TOKEN env (OIDC handles auth)",
+      relatedField: "releaseWorkflow",
+    });
+  }
+
+  if (isPrivateRegistry && workflow.publishStepEnvAuthSecret !== null) {
+    issues.push({
+      severity: "warn",
+      code: "WORKFLOW_MISSING_AUTH_SECRET",
+      message: `Workflow expects GitHub Actions secret '${workflow.publishStepEnvAuthSecret}' for NODE_AUTH_TOKEN; verify it is set in repo settings (doctor cannot inspect secret values)`,
+      relatedField: "releaseWorkflow",
+    });
+  }
+}
+
+function collectNpmrcIssues(input: IssueCollectionInput, issues: Array<DoctorIssue>): void {
+  if (input.npmrc === null) {
+    return;
+  }
+  for (const ref of input.npmrc.authRefs) {
+    if (ref.isLiteral) {
+      issues.push({
+        severity: "warn",
+        code: "NPMRC_LITERAL_TOKEN",
+        message: `.npmrc line ${ref.lineNumber} contains a literal _authToken value (not a \${VAR} reference); this is a credential leak risk`,
+        remedy: `Replace the literal value with a \${ENV_VAR} reference, e.g. ${ref.host}:_authToken=\${NPM_TOKEN}`,
+        relatedField: `npmrc.authRefs[${ref.lineNumber}]`,
+      });
+    }
+  }
+
+  const publishRegistry = input.publishConfig.registry;
+  if (publishRegistry !== null) {
+    const npmrcRegistry = resolveNpmrcRegistryForPackage(input.npmrc, input.packages);
+    if (npmrcRegistry !== null && !registriesMatch(npmrcRegistry, publishRegistry)) {
+      issues.push({
+        severity: "warn",
+        code: "NPMRC_REGISTRY_DIVERGES",
+        message: `.npmrc registry '${npmrcRegistry}' diverges from package.json#publishConfig.registry '${publishRegistry}'`,
+        remedy:
+          "Align both to the same registry, or scope the .npmrc mapping to a specific @scope so it doesn't conflict",
+        relatedField: "npmrc",
+      });
+    }
+  }
+}
+
+function resolveNpmrcRegistryForPackage(
+  npmrc: NpmrcSnapshot,
+  packages: ReadonlyArray<PackageDoctorEntry>,
+): string | null {
+  for (const pkg of packages) {
+    if (pkg.pkg.startsWith("@")) {
+      const scope = pkg.pkg.split("/")[0];
+      const mapping = npmrc.scopes.find((entry) => entry.scope === scope);
+      if (mapping !== undefined) {
+        return mapping.registry;
+      }
+    }
+  }
+  return npmrc.registry;
+}
+
+function registriesMatch(left: string, right: string): boolean {
+  return normalizeRegistry(left) === normalizeRegistry(right);
+}
+
+function normalizeRegistry(url: string): string {
+  return url.replace(/\/+$/, "").toLowerCase();
 }
 
 function summarizeReport(

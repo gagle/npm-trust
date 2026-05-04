@@ -88,7 +88,7 @@ The graph auto-updates via `PostToolUse` hooks; run `mcp__code-review-graph__bui
 
 For a normal release, invoke `/release-solo-npm` — it runs Phase A pre-flight (`/verify` + `npm-trust --doctor`), shows the plan with one `AskUserQuestion` approval, then commits / tags / watches CI / verifies provenance on the registry.
 
-The package is past first-publish (currently at v0.6.1 with OIDC trust configured). For a hypothetical fresh repo doing its first publish, see [`docs/bootstrap.md`](docs/bootstrap.md) §5 ("First publish — the chicken-and-egg") — the classic-publish step is repo-author-driven; the trust-setup half is owned by the bundled `setup-npm-trust` skill.
+The package is past first-publish (currently at v0.6.1 with OIDC trust configured). For a hypothetical fresh repo doing its first publish, see the "First publish (chicken-and-egg)" section in [`README.md`](README.md) — the classic-publish step is repo-author-driven; the trust-setup half is owned by the bundled `npm-trust-setup` skill.
 
 ## Important guardrails
 
