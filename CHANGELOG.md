@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.8.0](https://github.com/gagle/npm-trust/compare/v0.7.0...v0.8.0) (2026-05-04)
+
+### Features
+
+- **`npm-trust` is now distributable as a Claude Code plugin** in addition to the existing npm package distribution. New file `.claude-plugin/plugin.json`. Install via `/plugin marketplace add gagle/solo-npm` then `/plugin install npm-trust@gllamas-skills`. The setup skill is then invocable as `/npm-trust:setup` without needing to copy the skill file into the consumer repo. The CLI's `--init-skill setup` flow continues to work for repos that want the skill content tracked in their git history.
+
+### Breaking Changes
+
+- bundled skill **renamed `npm-trust-setup` → `setup`** (folder, frontmatter `name`, CLI flag value, slash invocation). The Claude Code plugin namespace prefix produces `/npm-trust:setup` automatically (matching the addyosmani/agent-skills convention).
+- `--init-skill <name>` flag value changed: `npm-trust-setup` → `setup`. Migration:
+  ```bash
+  # before
+  pnpm exec npm-trust --init-skill npm-trust-setup
+  # after
+  pnpm exec npm-trust --init-skill setup
+  ```
+- Repos with a committed `.claude/skills/npm-trust-setup/` folder should:
+  ```bash
+  git mv .claude/skills/npm-trust-setup .claude/skills/setup
+  # update SKILL.md frontmatter `name: npm-trust-setup` → `name: setup`
+  # update body slash refs `/npm-trust-setup` → `/npm-trust:setup`
+  ```
+
 ## [0.7.0](https://github.com/gagle/npm-trust/compare/v0.6.1...v0.7.0) (2026-05-04)
 
 ### Migration

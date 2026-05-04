@@ -346,25 +346,40 @@ plain bash steps; any agent that loads `.claude/skills/` can use it.
 The CLI installs it for you:
 
 ```bash
-npx npm-trust --init-skill
+npx npm-trust --init-skill setup
 ```
 
-This copies the bundled `skills/npm-trust-setup/SKILL.md` to
-`./.claude/skills/npm-trust-setup/SKILL.md`. Refuses to overwrite an existing
+This copies the bundled `skills/setup/SKILL.md` to
+`./.claude/skills/setup/SKILL.md`. Refuses to overwrite an existing
 file — delete it first if you want to refresh.
 
 If you'd rather copy by hand:
 
 ```bash
 mkdir -p .claude/skills
-cp -r node_modules/npm-trust/skills/npm-trust-setup .claude/skills/
+cp -r node_modules/npm-trust/skills/setup .claude/skills/
 ```
 
-In Claude Code, invoke `/npm-trust-setup` (or just describe the task — the
+In Claude Code, invoke `/npm-trust:setup` (or just describe the task — the
 agent will pick the skill up automatically).
 
-The source lives at [`skills/npm-trust-setup/SKILL.md`](skills/npm-trust-setup/SKILL.md)
+The source lives at [`skills/setup/SKILL.md`](skills/setup/SKILL.md)
 in this repo if you want to read it without installing first.
+
+### As a Claude Code marketplace plugin
+
+`npm-trust` is also distributed as a Claude Code plugin via the
+`gllamas-skills` marketplace. The setup skill loads automatically:
+
+```
+/plugin marketplace add gagle/solo-npm
+/plugin install npm-trust@gllamas-skills
+```
+
+After install, `/npm-trust:setup` is available without copying the
+skill file into your repo. Use this path if you don't want the skill
+content in your git history. The CLI's `--init-skill setup` flow
+(above) is the alternative for repos that want to track the skill.
 
 ## Release workflow for solo AI devs
 
@@ -402,7 +417,7 @@ The bootstrap path:
    ```bash
    pnpm exec npm-trust --auto --repo <owner/repo> --workflow release.yml
    ```
-   Or run the bundled `npm-trust-setup` skill in Claude Code for the
+   Or run the bundled `/npm-trust:setup` skill in Claude Code for the
    full guided flow (auth gate, dry-run, configure, verify).
 4. **Set `package.json#publishConfig`**:
    ```json

@@ -570,7 +570,7 @@ describe("CLI e2e", () => {
 
     beforeEach(async () => {
       result = await runCli({
-        args: ["--init-skill", "npm-trust-setup"],
+        args: ["--init-skill", "setup"],
         workspaceFiles: { "README.md": "scratch" },
       });
     });
@@ -580,7 +580,7 @@ describe("CLI e2e", () => {
     });
 
     it("should report the install destination", () => {
-      expect(result.stdout).toContain("Installed npm-trust-setup skill");
+      expect(result.stdout).toContain("Installed setup skill");
     });
 
     it("should not invoke npm", () => {
@@ -615,9 +615,9 @@ describe("CLI e2e", () => {
 
     beforeEach(async () => {
       secondResult = await runCli({
-        args: ["--init-skill", "npm-trust-setup"],
+        args: ["--init-skill", "setup"],
         workspaceFiles: {
-          ".claude/skills/npm-trust-setup/SKILL.md": "pre-existing content",
+          ".claude/skills/setup/SKILL.md": "pre-existing content",
         },
       });
     });

@@ -1,0 +1,9 @@
+{
+  "name": "npm-trust",
+  "description": "OIDC trust setup for npm packages — interactive wizard skill that bulk-configures Trusted Publishing across an npm scope. Composes with the solo-npm marketplace plugin.",
+  "version": "0.8.0",
+  "author": { "name": "gllamas" },
+  "homepage": "https://github.com/gagle/npm-trust",
+  "repository": "https://github.com/gagle/npm-trust",
+  "license": "MIT"
+}
