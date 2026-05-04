@@ -1,16 +1,24 @@
 ---
 name: verify
-description: >
-  Run all quality gates: lint, typecheck, build, unit tests, e2e tests. Use
-  after any code change to ensure nothing is broken before marking work complete.
+description: Verify npm-trust — wraps /solo-npm:verify with the full test suite (lint, typecheck, build, unit tests with 100% coverage, e2e, CLI smoke).
 ---
 
-# Verify
+# Verify (npm-trust)
 
-Run each step sequentially. On failure, stop and report which step failed with
-the error output. Do not proceed to the next step until the current one passes.
+Composes /solo-npm:verify with this repo's full verification suite.
+
+## Repo context
+
+- TypeScript 5.8 strict ESM CLI + library
+- 100% test coverage threshold (statements/branches/functions/lines)
+- E2E tests spawn the built CLI as a child process; require `dist/` to
+  be present (i.e., step 3 build must have run first)
+- E2E harness uses a fake `npm` binary on `PATH` + `msw` to mock the
+  registry — no network calls
 
 ## Steps
+
+Run sequentially; halt on first failure.
 
 ### 1. Lint
 
@@ -30,7 +38,7 @@ pnpm typecheck
 pnpm build
 ```
 
-### 4. Unit tests
+### 4. Unit tests (with coverage)
 
 ```bash
 pnpm test
@@ -40,16 +48,9 @@ Must pass with the 100% coverage thresholds enforced in `vitest.config.ts`.
 
 ### 5. E2E tests
 
-E2E tests spawn the built CLI as a child process. They require step 3 (build) to
-have produced `dist/`.
-
 ```bash
 pnpm test:e2e
 ```
-
-Every CLI flag/path must have an e2e test. The harness lives in `e2e/` and
-uses a fake `npm` binary on `PATH` plus `msw` to mock the registry — no network
-calls hit the real internet.
 
 ### 6. CLI smoke
 
@@ -61,12 +62,10 @@ node bin/npm-trust.js --help
 
 Should print usage and exit 0.
 
-## On failure
+## Workflow
 
-1. Read the error output and diagnose the root cause.
-2. Fix the issue.
-3. Re-run from the failed step (not from the beginning — earlier steps already passed).
-4. Repeat until all steps pass.
+Invoke `/solo-npm:verify` for the opinionated baseline. Run the six
+steps above sequentially; halt on first failure; surface full output.
 
 ## Report
 

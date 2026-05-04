@@ -1,4 +1,15 @@
 {
+  "extraKnownMarketplaces": {
+    "gllamas-skills": {
+      "source": {
+        "source": "github",
+        "repo": "gagle/solo-npm"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "solo-npm@gllamas-skills": true
+  },
   "hooks": {
     "PostToolUse": [
       {
