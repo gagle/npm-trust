@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Built_with-AI-7e47ff" alt="Built with AI" />
   <a href="https://github.com/gagle/npm-trust/blob/main/LICENSE"><img src="https://img.shields.io/github/license/gagle/npm-trust" alt="license" /></a>
   <a href="https://www.npmjs.com/package/npm-trust"><img src="https://img.shields.io/npm/v/npm-trust" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/npm-trust"><img src="https://img.shields.io/npm/dm/npm-trust" alt="npm downloads" /></a>
