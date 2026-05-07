@@ -388,6 +388,51 @@ describe("runCli", () => {
     });
   });
 
+  describe("when --emit-workflow --with-prepare-dist is passed", () => {
+    it("should write the prepare-dist variant template", async () => {
+      const logger = createLogger();
+      const exitCode = await runCli(["--emit-workflow", "--with-prepare-dist"], logger);
+      expect(exitCode).toBe(EXIT.SUCCESS);
+      expect(logger.logs[0]).toContain("gagle/prepare-dist@v1");
+      expect(logger.logs[0]).toContain("id-token: write");
+      expect(logger.logs[0]).toContain("working-directory: dist");
+    });
+
+    it("default --emit-workflow should NOT contain the prepare-dist step", async () => {
+      const logger = createLogger();
+      await runCli(["--emit-workflow"], logger);
+      expect(logger.logs[0]).not.toContain("gagle/prepare-dist@v1");
+    });
+  });
+
+  describe("when --with-prepare-dist is passed without --emit-workflow", () => {
+    it("should exit CONFIGURATION_ERROR with a clear message", async () => {
+      const logger = createLogger();
+      const exitCode = await runCli(["--with-prepare-dist"], logger);
+      expect(exitCode).toBe(EXIT.CONFIGURATION_ERROR);
+      expect(logger.errors.some((e) => e.includes("requires --emit-workflow"))).toBe(true);
+    });
+  });
+
+  describe("when --capabilities is passed", () => {
+    it("should emit a CapabilitiesReport JSON and exit SUCCESS", async () => {
+      const logger = createLogger();
+      const exitCode = await runCli(["--capabilities"], logger);
+      expect(exitCode).toBe(EXIT.SUCCESS);
+      const parsed: { schemaVersion: number; name: string } = JSON.parse(logger.logs[0] ?? "");
+      expect(parsed.schemaVersion).toBe(1);
+      expect(parsed.name).toBe("npm-trust");
+    });
+
+    it("should not invoke any other dispatch path", async () => {
+      const logger = createLogger();
+      await runCli(["--capabilities"], logger);
+      expect(discoverFromCwdMock).not.toHaveBeenCalled();
+      expect(runDoctorMock).not.toHaveBeenCalled();
+      expect(configureTrustMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe("when --validate-only is passed", () => {
     it("should call runValidate and return its exit code", async () => {
       runValidateMock.mockResolvedValueOnce(0);

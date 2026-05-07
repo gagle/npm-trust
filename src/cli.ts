@@ -1,12 +1,16 @@
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
+import { buildCapabilitiesReport } from "./capabilities.js";
 import { findUnconfiguredPackages } from "./diff.js";
 import { discoverPackages } from "./discover.js";
 import { discoverFromCwd } from "./discover-workspace.js";
 import { runDoctor } from "./doctor.js";
 import { EXIT } from "./exit-codes.js";
-import { RELEASE_WORKFLOW_PUBLIC } from "./templates/release-workflow.js";
+import {
+  RELEASE_WORKFLOW_PUBLIC,
+  RELEASE_WORKFLOW_WITH_PREPARE_DIST,
+} from "./templates/release-workflow.js";
 import { runValidate } from "./validate.js";
 import {
   formatVerifyProvenanceHuman,
@@ -102,8 +106,11 @@ Options:
                          --validate-only, --list, and configure)
   --emit-workflow        print the canonical OIDC release.yml template to stdout
                          (consumers redirect to .github/workflows/release.yml)
+  --with-prepare-dist    modifier for --emit-workflow; emits the variant that wires in
+                         the prepare-dist step (gagle/prepare-dist@v1) before publish
   --verify-provenance    bulk-query provenance attestations for the discovered/named packages
   --validate-only        fast read-only pre-flight (workflow + repo + auth, no per-package npm calls)
+  --capabilities         emit a CapabilitiesReport describing the CLI surface
   --help                 show this help message
 
 Note: 'npm trust' uses web-based 2FA only. The first call opens a browser
@@ -138,6 +145,8 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       "emit-workflow": { type: "boolean", default: false },
       "verify-provenance": { type: "boolean", default: false },
       "validate-only": { type: "boolean", default: false },
+      capabilities: { type: "boolean", default: false },
+      "with-prepare-dist": { type: "boolean", default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -166,6 +175,8 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       emitWorkflow: Boolean(values["emit-workflow"]),
       verifyProvenance: Boolean(values["verify-provenance"]),
       validateOnly: Boolean(values["validate-only"]),
+      capabilities: Boolean(values.capabilities),
+      withPrepareDist: Boolean(values["with-prepare-dist"]),
     },
   };
 }
@@ -236,9 +247,22 @@ export async function runCli(
       return EXIT.SUCCESS;
     }
 
-    if (options.emitWorkflow) {
-      logger.log(RELEASE_WORKFLOW_PUBLIC);
+    if (options.capabilities) {
+      logger.log(JSON.stringify(buildCapabilitiesReport(), null, 2));
       return EXIT.SUCCESS;
+    }
+
+    if (options.emitWorkflow) {
+      const template = options.withPrepareDist
+        ? RELEASE_WORKFLOW_WITH_PREPARE_DIST
+        : RELEASE_WORKFLOW_PUBLIC;
+      logger.log(template);
+      return EXIT.SUCCESS;
+    }
+
+    if (options.withPrepareDist) {
+      logger.error("Error: --with-prepare-dist requires --emit-workflow");
+      return EXIT.CONFIGURATION_ERROR;
     }
 
     if (options.validateOnly) {

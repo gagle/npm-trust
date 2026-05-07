@@ -27,7 +27,16 @@ export {
   runValidate,
 } from "./validate.js";
 export { readWorkflowSnapshotReport } from "./workflow.js";
+export { buildCapabilitiesReport } from "./capabilities.js";
+export {
+  RELEASE_WORKFLOW_PUBLIC,
+  RELEASE_WORKFLOW_WITH_PREPARE_DIST,
+} from "./templates/release-workflow.js";
 export type {
+  CapabilitiesExitCode,
+  CapabilitiesFlag,
+  CapabilitiesJsonSchema,
+  CapabilitiesReport,
   ConfigureEntryResult,
   ConfigureReport,
   ConfigureReportEntry,
