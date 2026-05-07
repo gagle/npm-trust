@@ -492,6 +492,90 @@ describe("configureTrust", () => {
       expect(logger.lines[0]).toBe("Configuring OIDC trusted publishing for 0 packages");
     });
   });
+
+  describe("when --json is set with successful packages", () => {
+    let logger: CapturingLogger;
+    let summary: TrustSummary;
+
+    beforeEach(() => {
+      spawnSyncMock.mockReturnValueOnce(ok()).mockReturnValueOnce(fail("409 conflict"));
+      logger = createLogger();
+      summary = configureTrust({
+        packages: ["@x/a", "@x/b"],
+        repo: "o/r",
+        workflow: "w.yml",
+        json: true,
+        logger,
+      });
+    });
+
+    it("should emit a single ConfigureReport JSON blob and skip per-package text", () => {
+      expect(logger.lines).toHaveLength(1);
+      const parsed: unknown = JSON.parse(logger.lines[0] ?? "");
+      expect(parsed).toMatchObject({
+        schemaVersion: 1,
+        summary: { configured: 1, already: 1, failed: 0 },
+        entries: [
+          { pkg: "@x/a", result: "configured" },
+          { pkg: "@x/b", result: "already" },
+        ],
+      });
+    });
+
+    it("should still return the summary for callers", () => {
+      expect(summary.configured).toBe(1);
+      expect(summary.already).toBe(1);
+    });
+  });
+
+  describe("when --json is set with dryRun", () => {
+    it("should record dry_run for every entry and emit a single JSON blob", () => {
+      const logger = createLogger();
+      configureTrust({
+        packages: ["@x/a", "@x/b"],
+        repo: "o/r",
+        workflow: "w.yml",
+        dryRun: true,
+        json: true,
+        logger,
+      });
+      expect(logger.lines).toHaveLength(1);
+      const parsed: unknown = JSON.parse(logger.lines[0] ?? "");
+      expect(parsed).toMatchObject({
+        schemaVersion: 1,
+        entries: [
+          { pkg: "@x/a", result: "dry_run" },
+          { pkg: "@x/b", result: "dry_run" },
+        ],
+      });
+    });
+  });
+
+  describe("when --json is set and 2FA is required in non-TTY mode", () => {
+    it("should suppress the human auth-failed message and break the loop", () => {
+      stubIsTTY(false);
+      try {
+        spawnSyncMock.mockReturnValueOnce(fail("EOTP one-time password required"));
+        const logger = createLogger();
+        configureTrust({
+          packages: ["@x/a", "@x/b"],
+          repo: "o/r",
+          workflow: "w.yml",
+          json: true,
+          logger,
+        });
+        expect(logger.lines).toHaveLength(1);
+        const parsed: unknown = JSON.parse(logger.lines[0] ?? "");
+        expect(parsed).toMatchObject({
+          schemaVersion: 1,
+          summary: { configured: 0, already: 0, failed: 1 },
+          entries: [{ pkg: "@x/a", result: "auth_failed" }],
+        });
+      } finally {
+        restoreIsTTY();
+      }
+    });
+  });
 });
 
 describe("listTrust", () => {
@@ -595,6 +679,29 @@ describe("listTrust", () => {
 
     it("should omit the scope suffix from the header", () => {
       expect(logger.lines[0]).toBe("Checking trust status for 2 packages");
+    });
+  });
+
+  describe("when --json is set", () => {
+    it("should emit a single JSON ListReport and skip the human header", () => {
+      spawnSyncMock
+        .mockReturnValueOnce({ stdout: "github:gagle/foo (release.yml)", status: 0 })
+        .mockReturnValueOnce({ stdout: "", status: 1 });
+      const logger = createLogger();
+      listTrust({ packages: ["@x/a", "@x/b"], json: true, logger });
+      expect(logger.lines).toHaveLength(1);
+      const parsed: unknown = JSON.parse(logger.lines[0] ?? "");
+      expect(parsed).toMatchObject({
+        schemaVersion: 1,
+        packages: [
+          {
+            pkg: "@x/a",
+            trustConfigured: true,
+            raw: "github:gagle/foo (release.yml)",
+          },
+          { pkg: "@x/b", trustConfigured: false, raw: "" },
+        ],
+      });
     });
   });
 });

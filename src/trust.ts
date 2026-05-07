@@ -1,7 +1,12 @@
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import type {
+  ConfigureEntryResult,
+  ConfigureReport,
+  ConfigureReportEntry,
   ConfigureTrustOptions,
+  ListReport,
+  ListReportEntry,
   ListTrustOptions,
   Logger,
   TrustResult,
@@ -149,31 +154,47 @@ function formatResult(pkg: string, result: TrustResult): string {
 }
 
 export function configureTrust(options: ConfigureTrustOptions): TrustSummary {
-  const { packages, repo, workflow, dryRun = false, logger = CONSOLE_LOGGER } = options;
+  const {
+    packages,
+    repo,
+    workflow,
+    dryRun = false,
+    json = false,
+    logger = CONSOLE_LOGGER,
+  } = options;
 
   const commonScope = inferCommonScope(packages);
   const scopeSuffix = commonScope === null ? "" : ` in ${commonScope}`;
-  logger.log(`Configuring OIDC trusted publishing for ${packages.length} packages${scopeSuffix}`);
-  logger.log(`Repo: ${repo} | Workflow: ${workflow}`);
-  if (dryRun) {
-    logger.log("(dry run — no changes will be made)");
+  if (!json) {
+    logger.log(`Configuring OIDC trusted publishing for ${packages.length} packages${scopeSuffix}`);
+    logger.log(`Repo: ${repo} | Workflow: ${workflow}`);
+    if (dryRun) {
+      logger.log("(dry run — no changes will be made)");
+    }
+    logger.log("");
   }
-  logger.log("");
 
   let configured = 0;
   let already = 0;
   let failed = 0;
   const failedPackages: Array<string> = [];
+  const entries: Array<ConfigureReportEntry> = [];
 
   for (const pkg of packages) {
     if (dryRun) {
-      logger.log(`${pkg.padEnd(30)} (dry run)`);
+      if (!json) {
+        logger.log(`${pkg.padEnd(30)} (dry run)`);
+      }
+      entries.push({ pkg, result: "dry_run" });
       continue;
     }
 
     const result = trustPackage(pkg, repo, workflow);
+    entries.push({ pkg, result: result satisfies ConfigureEntryResult });
 
-    logger.log(formatResult(pkg, result));
+    if (!json) {
+      logger.log(formatResult(pkg, result));
+    }
 
     if (result === "configured") {
       configured++;
@@ -182,13 +203,23 @@ export function configureTrust(options: ConfigureTrustOptions): TrustSummary {
     } else if (result === "auth_failed") {
       failed++;
       failedPackages.push(pkg);
-      logger.log("");
-      logger.log("Authentication failed. Re-run after authenticating.");
+      if (!json) {
+        logger.log("");
+        logger.log("Authentication failed. Re-run after authenticating.");
+      }
       break;
     } else {
       failed++;
       failedPackages.push(pkg);
     }
+  }
+
+  const summary: TrustSummary = { configured, already, failed, failedPackages };
+
+  if (json) {
+    const report: ConfigureReport = { schemaVersion: 1, summary, entries };
+    logger.log(JSON.stringify(report, null, 2));
+    return summary;
   }
 
   logger.log("");
@@ -202,16 +233,20 @@ export function configureTrust(options: ConfigureTrustOptions): TrustSummary {
     }
   }
 
-  return { configured, already, failed, failedPackages };
+  return summary;
 }
 
 export function listTrust(options: ListTrustOptions): void {
-  const { packages, logger = CONSOLE_LOGGER } = options;
+  const { packages, json = false, logger = CONSOLE_LOGGER } = options;
 
-  const commonScope = inferCommonScope(packages);
-  const scopeSuffix = commonScope === null ? "" : ` in ${commonScope}`;
-  logger.log(`Checking trust status for ${packages.length} packages${scopeSuffix}`);
-  logger.log("");
+  if (!json) {
+    const commonScope = inferCommonScope(packages);
+    const scopeSuffix = commonScope === null ? "" : ` in ${commonScope}`;
+    logger.log(`Checking trust status for ${packages.length} packages${scopeSuffix}`);
+    logger.log("");
+  }
+
+  const entries: Array<ListReportEntry> = [];
 
   for (const pkg of packages) {
     const result = spawnSync(resolveNpmBin(), ["trust", "list", pkg], {
@@ -220,11 +255,17 @@ export function listTrust(options: ListTrustOptions): void {
       stdio: ["pipe", "pipe", "pipe"],
     });
 
-    if (result.status === 0) {
-      const output = result.stdout.trim();
-      logger.log(`${pkg.padEnd(30)} ${output || "(no trust configured)"}`);
-    } else {
-      logger.log(`${pkg.padEnd(30)} (no trust configured)`);
+    const raw = result.status === 0 ? result.stdout.trim() : "";
+    const trustConfigured = result.status === 0 && raw !== "";
+    entries.push({ pkg, trustConfigured, raw });
+
+    if (!json) {
+      logger.log(`${pkg.padEnd(30)} ${trustConfigured ? raw : "(no trust configured)"}`);
     }
+  }
+
+  if (json) {
+    const report: ListReport = { schemaVersion: 1, packages: entries };
+    logger.log(JSON.stringify(report, null, 2));
   }
 }

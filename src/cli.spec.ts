@@ -799,6 +799,7 @@ describe("runCli", () => {
     it("should call listTrust with the packages and logger", () => {
       expect(listTrustMock).toHaveBeenCalledWith({
         packages: ["@x/a"],
+        json: false,
         logger,
       });
     });
@@ -910,6 +911,7 @@ describe("runCli", () => {
         repo: "o/r",
         workflow: "w.yml",
         dryRun: false,
+        json: false,
         logger,
       });
     });

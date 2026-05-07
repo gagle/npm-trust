@@ -98,7 +98,8 @@ Options:
   --only-new             filter to packages that have no OIDC trust yet or are unpublished
   --dry-run              show what would be done without making changes
   --doctor               print a structured environment + per-package health report
-  --json                 emit machine-readable JSON (with --doctor or --verify-provenance)
+  --json                 emit machine-readable JSON (works with --doctor, --verify-provenance,
+                         --validate-only, --list, and configure)
   --emit-workflow        print the canonical OIDC release.yml template to stdout
                          (consumers redirect to .github/workflows/release.yml)
   --verify-provenance    bulk-query provenance attestations for the discovered/named packages
@@ -325,7 +326,7 @@ export async function runCli(
     }
 
     if (options.list) {
-      listTrust({ packages: workingPackages, logger });
+      listTrust({ packages: workingPackages, json: Boolean(options.json), logger });
       return EXIT.SUCCESS;
     }
 
@@ -347,6 +348,7 @@ export async function runCli(
       repo: options.repo,
       workflow: options.workflow,
       dryRun: Boolean(options.dryRun),
+      json: Boolean(options.json),
       logger,
     });
 

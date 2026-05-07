@@ -168,12 +168,38 @@ export interface ConfigureTrustOptions {
   readonly repo: string;
   readonly workflow: string;
   readonly dryRun?: boolean;
+  readonly json?: boolean;
   readonly logger?: Logger;
 }
 
 export interface ListTrustOptions {
   readonly packages: ReadonlyArray<string>;
+  readonly json?: boolean;
   readonly logger?: Logger;
+}
+
+export interface ListReportEntry {
+  readonly pkg: string;
+  readonly trustConfigured: boolean;
+  readonly raw: string;
+}
+
+export interface ListReport {
+  readonly schemaVersion: 1;
+  readonly packages: ReadonlyArray<ListReportEntry>;
+}
+
+export type ConfigureEntryResult = TrustResult | "dry_run";
+
+export interface ConfigureReportEntry {
+  readonly pkg: string;
+  readonly result: ConfigureEntryResult;
+}
+
+export interface ConfigureReport {
+  readonly schemaVersion: 1;
+  readonly summary: TrustSummary;
+  readonly entries: ReadonlyArray<ConfigureReportEntry>;
 }
 
 export interface Logger {

@@ -28,12 +28,17 @@ export {
 } from "./validate.js";
 export { readWorkflowSnapshotReport } from "./workflow.js";
 export type {
+  ConfigureEntryResult,
+  ConfigureReport,
+  ConfigureReportEntry,
   ConfigureTrustOptions,
   DiscoveredWorkspace,
   DoctorIssue,
   DoctorIssueCode,
   DoctorIssueSeverity,
   DoctorReport,
+  ListReport,
+  ListReportEntry,
   ListTrustOptions,
   Logger,
   PackageDoctorEntry,
