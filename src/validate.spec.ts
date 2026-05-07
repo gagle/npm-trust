@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const inspectAuthMock = vi.fn();
 const inspectRepoMock = vi.fn();
-const readReleaseWorkflowMock = vi.fn();
+const readWorkflowSnapshotReportMock = vi.fn();
 
 vi.mock("./doctor.js", () => ({
   inspectAuth: () => inspectAuthMock(),
@@ -10,7 +10,8 @@ vi.mock("./doctor.js", () => ({
 }));
 
 vi.mock("./workflow.js", () => ({
-  readReleaseWorkflow: (...args: ReadonlyArray<unknown>) => readReleaseWorkflowMock(...args),
+  readWorkflowSnapshotReport: (...args: ReadonlyArray<unknown>) =>
+    readWorkflowSnapshotReportMock(...args),
 }));
 
 const {
@@ -37,6 +38,8 @@ const HEALTHY_REPO = {
   host: "github" as const,
 };
 const HEALTHY_WORKFLOW = {
+  file: "release.yml",
+  fileHash: "abc123",
   hasIdTokenWrite: true,
   setupNodeRegistryUrl: "https://registry.npmjs.org",
   setupNodeAlwaysAuth: false,
@@ -51,7 +54,7 @@ describe("collectValidateReport", () => {
   it("should return ready=true when all checks pass", async () => {
     inspectAuthMock.mockReturnValueOnce(HEALTHY_AUTH);
     inspectRepoMock.mockReturnValueOnce(HEALTHY_REPO);
-    readReleaseWorkflowMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
     const report = await collectValidateReport({
       cwd: "/tmp/x",
       workflow: "release.yml",
@@ -65,7 +68,7 @@ describe("collectValidateReport", () => {
   it("should record auth failure when not logged in", async () => {
     inspectAuthMock.mockReturnValueOnce({ ...HEALTHY_AUTH, loggedIn: false, username: null });
     inspectRepoMock.mockReturnValueOnce(HEALTHY_REPO);
-    readReleaseWorkflowMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
     const report = await collectValidateReport({
       cwd: "/tmp/x",
       workflow: "release.yml",
@@ -78,7 +81,7 @@ describe("collectValidateReport", () => {
   it("should record workflow-not-found when readReleaseWorkflow returns null", async () => {
     inspectAuthMock.mockReturnValueOnce(HEALTHY_AUTH);
     inspectRepoMock.mockReturnValueOnce(HEALTHY_REPO);
-    readReleaseWorkflowMock.mockResolvedValueOnce(null);
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce(null);
     const report = await collectValidateReport({
       cwd: "/tmp/x",
       workflow: "release.yml",
@@ -98,7 +101,7 @@ describe("collectValidateReport", () => {
     });
     expect(report.ready).toBe(false);
     expect(report.failures.some((f) => f.includes("no --workflow specified"))).toBe(true);
-    expect(readReleaseWorkflowMock).not.toHaveBeenCalled();
+    expect(readWorkflowSnapshotReportMock).not.toHaveBeenCalled();
   });
 
   it("should record workflow check failure when --workflow flag is empty string", async () => {
@@ -115,7 +118,7 @@ describe("collectValidateReport", () => {
   it("should fail when workflow lacks id-token: write", async () => {
     inspectAuthMock.mockReturnValueOnce(HEALTHY_AUTH);
     inspectRepoMock.mockReturnValueOnce(HEALTHY_REPO);
-    readReleaseWorkflowMock.mockResolvedValueOnce({ ...HEALTHY_WORKFLOW, hasIdTokenWrite: false });
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce({ ...HEALTHY_WORKFLOW, hasIdTokenWrite: false });
     const report = await collectValidateReport({
       cwd: "/tmp/x",
       workflow: "release.yml",
@@ -128,7 +131,7 @@ describe("collectValidateReport", () => {
   it("should fail when repo host is not github", async () => {
     inspectAuthMock.mockReturnValueOnce(HEALTHY_AUTH);
     inspectRepoMock.mockReturnValueOnce({ ...HEALTHY_REPO, host: "other" });
-    readReleaseWorkflowMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
     const report = await collectValidateReport({
       cwd: "/tmp/x",
       workflow: "release.yml",
@@ -141,7 +144,7 @@ describe("collectValidateReport", () => {
   it("should fail when repo host is null (no remote)", async () => {
     inspectAuthMock.mockReturnValueOnce(HEALTHY_AUTH);
     inspectRepoMock.mockReturnValueOnce({ ...HEALTHY_REPO, host: null });
-    readReleaseWorkflowMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
     const report = await collectValidateReport({
       cwd: "/tmp/x",
       workflow: "release.yml",
@@ -153,7 +156,7 @@ describe("collectValidateReport", () => {
   it("should aggregate multiple failures", async () => {
     inspectAuthMock.mockReturnValueOnce({ ...HEALTHY_AUTH, loggedIn: false, username: null });
     inspectRepoMock.mockReturnValueOnce({ ...HEALTHY_REPO, host: "other" });
-    readReleaseWorkflowMock.mockResolvedValueOnce({ ...HEALTHY_WORKFLOW, hasIdTokenWrite: false });
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce({ ...HEALTHY_WORKFLOW, hasIdTokenWrite: false });
     const report = await collectValidateReport({
       cwd: "/tmp/x",
       workflow: "release.yml",
@@ -166,7 +169,7 @@ describe("collectValidateReport", () => {
   it("should populate the workflow snapshot fields when present", async () => {
     inspectAuthMock.mockReturnValueOnce(HEALTHY_AUTH);
     inspectRepoMock.mockReturnValueOnce(HEALTHY_REPO);
-    readReleaseWorkflowMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
     const report = await collectValidateReport({
       cwd: "/tmp/x",
       workflow: "release.yml",
@@ -188,7 +191,7 @@ describe("runValidate", () => {
   it("should return 0 on ready=true", async () => {
     inspectAuthMock.mockReturnValueOnce(HEALTHY_AUTH);
     inspectRepoMock.mockReturnValueOnce(HEALTHY_REPO);
-    readReleaseWorkflowMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
     const exitCode = await runValidate({
       cwd: "/tmp/x",
       workflow: "release.yml",
@@ -200,7 +203,7 @@ describe("runValidate", () => {
   it("should return 1 on ready=false", async () => {
     inspectAuthMock.mockReturnValueOnce({ ...HEALTHY_AUTH, loggedIn: false, username: null });
     inspectRepoMock.mockReturnValueOnce(HEALTHY_REPO);
-    readReleaseWorkflowMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
     const exitCode = await runValidate({
       cwd: "/tmp/x",
       workflow: "release.yml",
@@ -212,7 +215,7 @@ describe("runValidate", () => {
   it("should emit JSON when json=true", async () => {
     inspectAuthMock.mockReturnValueOnce(HEALTHY_AUTH);
     inspectRepoMock.mockReturnValueOnce(HEALTHY_REPO);
-    readReleaseWorkflowMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
     const logger = createLogger();
     await runValidate({ cwd: "/tmp/x", workflow: "release.yml", json: true, logger });
     expect(logger.logs[0]).toContain('"schemaVersion": 1');
@@ -221,7 +224,7 @@ describe("runValidate", () => {
   it("should emit human format when json=false (default)", async () => {
     inspectAuthMock.mockReturnValueOnce(HEALTHY_AUTH);
     inspectRepoMock.mockReturnValueOnce(HEALTHY_REPO);
-    readReleaseWorkflowMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
+    readWorkflowSnapshotReportMock.mockResolvedValueOnce(HEALTHY_WORKFLOW);
     const logger = createLogger();
     await runValidate({ cwd: "/tmp/x", workflow: "release.yml", logger });
     expect(logger.logs[0]).toContain("npm-trust validate");
@@ -248,6 +251,7 @@ describe("formatValidateReportHuman", () => {
       schemaVersion: 1 as const,
       workflow: {
         file: "release.yml",
+        fileHash: "deadbeef",
         hasIdTokenWrite: true,
         setupNodeRegistryUrl: "x",
         setupNodeAlwaysAuth: false,
@@ -296,6 +300,7 @@ describe("formatValidateReportHuman", () => {
       schemaVersion: 1 as const,
       workflow: {
         file: "release.yml",
+        fileHash: "cafebabe",
         hasIdTokenWrite: false,
         setupNodeRegistryUrl: "x",
         setupNodeAlwaysAuth: false,

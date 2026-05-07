@@ -3,13 +3,18 @@ import { readFileSync } from "node:fs";
 import { glob } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkPackageStatusesAsync } from "./diff.js";
+import { checkPackageStatusesAsync, runNpmAsync } from "./diff.js";
 import { discoverFromCwd } from "./discover-workspace.js";
 import { readNpmrc, type NpmrcSnapshot } from "./npmrc.js";
-import { readReleaseWorkflow, type WorkflowSnapshot } from "./workflow.js";
+import {
+  readReleaseWorkflow,
+  readWorkflowSnapshotReport,
+  type WorkflowSnapshot,
+} from "./workflow.js";
 import type {
   DiscoveredWorkspace,
   DoctorIssue,
+  DoctorIssueCode,
   DoctorReport,
   Logger,
   PackageDoctorEntry,
@@ -49,28 +54,37 @@ export async function collectReport(options: RunDoctorOptions): Promise<DoctorRe
   const workspace = await discoverFromCwd(options.cwd);
   const repo = inspectRepo(options.cwd);
   const workflows = await listWorkflows(options.cwd);
-  const packages = await buildPackageEntries(workspace);
+  const baseEntries = await buildPackageEntries(workspace);
+  const enrichedEntries = await enrichEntriesWithPublishTime(baseEntries);
   const publishConfig = inspectPublishConfig(options.cwd);
   const npmrc = await readNpmrc(options.cwd);
-  const releaseWorkflow =
+  const workflowKnown =
     options.workflow !== undefined && workflows.includes(options.workflow)
-      ? await readReleaseWorkflow(options.cwd, options.workflow)
+      ? options.workflow
       : null;
+  const releaseWorkflow =
+    workflowKnown !== null ? await readReleaseWorkflow(options.cwd, workflowKnown) : null;
+  const workflowSnapshot =
+    workflowKnown !== null
+      ? ((await readWorkflowSnapshotReport(options.cwd, workflowKnown)) ?? undefined)
+      : undefined;
   const issues = collectIssues({
     runtime,
     auth,
     workspace,
     repo,
     workflows,
-    packages,
+    packages: enrichedEntries,
     publishConfig,
     npmrc,
     releaseWorkflow,
     options,
   });
+  const packages = annotatePackagesWithIssueCodes(enrichedEntries, issues);
   const summary = summarizeReport(packages, issues);
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    workflowSnapshot,
     cli,
     runtime,
     auth,
@@ -81,6 +95,63 @@ export async function collectReport(options: RunDoctorOptions): Promise<DoctorRe
     issues,
     summary,
   };
+}
+
+async function enrichEntriesWithPublishTime(
+  entries: ReadonlyArray<PackageDoctorEntry>,
+): Promise<ReadonlyArray<PackageDoctorEntry>> {
+  if (entries.length === 0) {
+    return entries;
+  }
+  const results = await Promise.all(
+    entries.map(async (entry) => {
+      if (!entry.published) {
+        return entry;
+      }
+      const captured = await runNpmAsync(["view", entry.pkg, "version", "time", "--json"]);
+      if (captured.status !== 0 || captured.stdout.trim() === "") {
+        return entry;
+      }
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(captured.stdout);
+      } catch {
+        return entry;
+      }
+      if (typeof parsed !== "object" || parsed === null) {
+        return entry;
+      }
+      const obj = parsed as Record<string, unknown>;
+      const versionRaw = obj.version;
+      const latestVersion = typeof versionRaw === "string" ? versionRaw : undefined;
+      let lastSuccessfulPublish: string | undefined;
+      const time = obj.time;
+      if (latestVersion !== undefined && typeof time === "object" && time !== null) {
+        const ts = (time as Record<string, unknown>)[latestVersion];
+        if (typeof ts === "string") {
+          lastSuccessfulPublish = ts;
+        }
+      }
+      return { ...entry, latestVersion, lastSuccessfulPublish };
+    }),
+  );
+  return results;
+}
+
+function annotatePackagesWithIssueCodes(
+  entries: ReadonlyArray<PackageDoctorEntry>,
+  issues: ReadonlyArray<DoctorIssue>,
+): ReadonlyArray<PackageDoctorEntry> {
+  return entries.map((entry, index) => {
+    const target = `packages[${index}]`;
+    const codes: Array<DoctorIssueCode> = [];
+    for (const issue of issues) {
+      if (issue.relatedField === target) {
+        codes.push(issue.code);
+      }
+    }
+    return { ...entry, perPackageIssueCodes: codes };
+  });
 }
 
 export function formatDoctorReportJson(report: DoctorReport): string {
@@ -324,7 +395,7 @@ function toDoctorEntry(status: PackageStatus): PackageDoctorEntry {
       "trust-list empty but provenance attestation present (Trusted Publishing likely set up via npm web UI)",
     );
   }
-  return { ...status, discrepancies };
+  return { ...status, discrepancies, perPackageIssueCodes: [] };
 }
 
 interface PublishConfigSnapshot {

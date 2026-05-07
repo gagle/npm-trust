@@ -10,6 +10,7 @@ import type {
 const spawnSyncMock = vi.fn();
 const discoverFromCwdMock = vi.fn();
 const checkPackageStatusesAsyncMock = vi.fn();
+const runNpmAsyncMock = vi.fn();
 const globMock = vi.fn();
 const readFileSyncMock = vi.fn();
 
@@ -28,6 +29,7 @@ vi.mock("node:fs/promises", () => ({
 vi.mock("./diff.js", () => ({
   checkPackageStatusesAsync: (...args: ReadonlyArray<unknown>) =>
     checkPackageStatusesAsyncMock(...args),
+  runNpmAsync: (...args: ReadonlyArray<unknown>) => runNpmAsyncMock(...args),
 }));
 
 vi.mock("./discover-workspace.js", () => ({
@@ -36,6 +38,7 @@ vi.mock("./discover-workspace.js", () => ({
 
 const readNpmrcMock = vi.fn();
 const readReleaseWorkflowMock = vi.fn();
+const readWorkflowSnapshotReportMock = vi.fn();
 
 vi.mock("./npmrc.js", () => ({
   readNpmrc: (...args: ReadonlyArray<unknown>) => readNpmrcMock(...args),
@@ -43,6 +46,8 @@ vi.mock("./npmrc.js", () => ({
 
 vi.mock("./workflow.js", () => ({
   readReleaseWorkflow: (...args: ReadonlyArray<unknown>) => readReleaseWorkflowMock(...args),
+  readWorkflowSnapshotReport: (...args: ReadonlyArray<unknown>) =>
+    readWorkflowSnapshotReportMock(...args),
 }));
 
 const { collectReport, formatDoctorReportHuman, formatDoctorReportJson, runDoctor } =
@@ -150,6 +155,8 @@ beforeEach(() => {
   readFileSyncMock.mockReturnValue(JSON.stringify({ version: "0.4.0" }));
   readNpmrcMock.mockResolvedValue(null);
   readReleaseWorkflowMock.mockResolvedValue(null);
+  readWorkflowSnapshotReportMock.mockResolvedValue(null);
+  runNpmAsyncMock.mockResolvedValue({ stdout: "", status: 1 });
 });
 
 afterEach(() => {
@@ -165,8 +172,8 @@ describe("collectReport", () => {
       report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
     });
 
-    it("should set schemaVersion to 1", () => {
-      expect(report.schemaVersion).toBe(1);
+    it("should set schemaVersion to 2", () => {
+      expect(report.schemaVersion).toBe(2);
     });
 
     it("should report Node and npm as satisfying", () => {
@@ -1343,7 +1350,7 @@ describe("formatDoctorReportJson", () => {
     });
 
     it("should produce parseable JSON", () => {
-      expect(parsed.schemaVersion).toBe(1);
+      expect(parsed.schemaVersion).toBe(2);
     });
 
     it("should preserve the package list", () => {
@@ -1588,7 +1595,7 @@ describe("runDoctor", () => {
     });
 
     it("should emit JSON to logger.log", () => {
-      expect(JSON.parse(logger.logs[0] ?? "")).toMatchObject({ schemaVersion: 1 });
+      expect(JSON.parse(logger.logs[0] ?? "")).toMatchObject({ schemaVersion: 2 });
     });
   });
 
@@ -1612,6 +1619,216 @@ describe("runDoctor", () => {
 
     it("should return exit code 1", () => {
       expect(exitCode).toBe(1);
+    });
+  });
+
+  describe("workflowSnapshot enrichment (Item 1)", () => {
+    it("should populate workflowSnapshot when --workflow matches a known file", async () => {
+      setupHealthyEnvironment();
+      readWorkflowSnapshotReportMock.mockResolvedValueOnce({
+        file: "release.yml",
+        fileHash: "deadbeef",
+        hasIdTokenWrite: true,
+        setupNodeRegistryUrl: "https://registry.npmjs.org",
+        setupNodeAlwaysAuth: false,
+        publishStepEnvAuthSecret: null,
+      });
+      const report = await collectReport({
+        cwd: "/tmp/x",
+        workflow: "release.yml",
+        logger: createLogger(),
+      });
+      expect(report.workflowSnapshot).toBeDefined();
+      expect(report.workflowSnapshot?.fileHash).toBe("deadbeef");
+      expect(report.workflowSnapshot?.hasIdTokenWrite).toBe(true);
+    });
+
+    it("should leave workflowSnapshot undefined when --workflow not specified", async () => {
+      setupHealthyEnvironment();
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      expect(report.workflowSnapshot).toBeUndefined();
+    });
+
+    it("should leave workflowSnapshot undefined when readWorkflowSnapshotReport returns null", async () => {
+      setupHealthyEnvironment();
+      readWorkflowSnapshotReportMock.mockResolvedValueOnce(null);
+      const report = await collectReport({
+        cwd: "/tmp/x",
+        workflow: "release.yml",
+        logger: createLogger(),
+      });
+      expect(report.workflowSnapshot).toBeUndefined();
+    });
+  });
+
+  describe("publish-time enrichment (Item 1)", () => {
+    it("should populate latestVersion + lastSuccessfulPublish for published packages", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          version: "1.2.3",
+          time: { "1.2.3": "2026-04-01T10:00:00.000Z", modified: "2026-04-01T10:00:00.000Z" },
+        }),
+        status: 0,
+      });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      const pkg = report.packages[0];
+      expect(pkg?.latestVersion).toBe("1.2.3");
+      expect(pkg?.lastSuccessfulPublish).toBe("2026-04-01T10:00:00.000Z");
+    });
+
+    it("should leave fields undefined when npm view fails", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({ stdout: "", status: 1 });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      const pkg = report.packages[0];
+      expect(pkg?.latestVersion).toBeUndefined();
+      expect(pkg?.lastSuccessfulPublish).toBeUndefined();
+    });
+
+    it("should leave fields undefined when npm view returns invalid JSON", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({ stdout: "not-json", status: 0 });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      const pkg = report.packages[0];
+      expect(pkg?.latestVersion).toBeUndefined();
+      expect(pkg?.lastSuccessfulPublish).toBeUndefined();
+    });
+
+    it("should leave fields undefined when npm view returns null literal", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({ stdout: "null", status: 0 });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      const pkg = report.packages[0];
+      expect(pkg?.latestVersion).toBeUndefined();
+      expect(pkg?.lastSuccessfulPublish).toBeUndefined();
+    });
+
+    it("should leave latestVersion undefined when version field is missing", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({
+        stdout: JSON.stringify({ time: { "1.0.0": "2026-04-01T00:00:00.000Z" } }),
+        status: 0,
+      });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      const pkg = report.packages[0];
+      expect(pkg?.latestVersion).toBeUndefined();
+      expect(pkg?.lastSuccessfulPublish).toBeUndefined();
+    });
+
+    it("should leave lastSuccessfulPublish undefined when time entry is missing", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({
+        stdout: JSON.stringify({ version: "1.0.0", time: {} }),
+        status: 0,
+      });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      const pkg = report.packages[0];
+      expect(pkg?.latestVersion).toBe("1.0.0");
+      expect(pkg?.lastSuccessfulPublish).toBeUndefined();
+    });
+
+    it("should not call npm view for unpublished packages", async () => {
+      stubNodeVersion("24.14.1");
+      setupSpawnRoutes({
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
+      });
+      discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
+      globMock.mockImplementation((pattern: string) =>
+        pattern.endsWith(".yml")
+          ? asyncIterable([".github/workflows/release.yml"])
+          : asyncIterable([]),
+      );
+      checkPackageStatusesAsyncMock.mockResolvedValueOnce([
+        { ...HEALTHY_PACKAGE, published: false },
+      ]);
+      await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      expect(runNpmAsyncMock).not.toHaveBeenCalled();
+    });
+
+    it("should not invoke runNpmAsync when there are no packages", async () => {
+      stubNodeVersion("24.14.1");
+      setupSpawnRoutes({
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
+      });
+      discoverFromCwdMock.mockResolvedValueOnce(null);
+      globMock.mockImplementation(() => asyncIterable([]));
+      checkPackageStatusesAsyncMock.mockResolvedValueOnce([]);
+      await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      expect(runNpmAsyncMock).not.toHaveBeenCalled();
+    });
+
+    it("should leave latestVersion undefined when stdout is empty whitespace", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({ stdout: "   \n", status: 0 });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      const pkg = report.packages[0];
+      expect(pkg?.latestVersion).toBeUndefined();
+    });
+
+    it("should leave fields undefined when version is non-string", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({
+        stdout: JSON.stringify({ version: 1, time: { "1": "x" } }),
+        status: 0,
+      });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      const pkg = report.packages[0];
+      expect(pkg?.latestVersion).toBeUndefined();
+    });
+
+    it("should leave lastSuccessfulPublish undefined when time is non-object", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({
+        stdout: JSON.stringify({ version: "1.0.0", time: "not-an-object" }),
+        status: 0,
+      });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      const pkg = report.packages[0];
+      expect(pkg?.latestVersion).toBe("1.0.0");
+      expect(pkg?.lastSuccessfulPublish).toBeUndefined();
+    });
+
+    it("should leave lastSuccessfulPublish undefined when time entry is non-string", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({
+        stdout: JSON.stringify({ version: "1.0.0", time: { "1.0.0": 12345 } }),
+        status: 0,
+      });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      const pkg = report.packages[0];
+      expect(pkg?.lastSuccessfulPublish).toBeUndefined();
+    });
+  });
+
+  describe("perPackageIssueCodes annotation (Item 1)", () => {
+    it("should attach issue codes to the package they relate to", async () => {
+      stubNodeVersion("24.14.1");
+      setupSpawnRoutes({
+        gitRemote: { stdout: "https://github.com/gagle/npm-trust.git\n", status: 0 },
+      });
+      discoverFromCwdMock.mockResolvedValueOnce(HEALTHY_WORKSPACE);
+      globMock.mockImplementation((pattern: string) =>
+        pattern.endsWith(".yml")
+          ? asyncIterable([".github/workflows/release.yml"])
+          : asyncIterable([]),
+      );
+      // unpublished triggers PACKAGE_NOT_PUBLISHED with relatedField=packages[0]
+      checkPackageStatusesAsyncMock.mockResolvedValueOnce([
+        { ...HEALTHY_PACKAGE, published: false },
+      ]);
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      expect(report.packages[0]?.perPackageIssueCodes).toContain("PACKAGE_NOT_PUBLISHED");
+    });
+
+    it("should default to empty array when no issues relate to the package", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({
+        stdout: JSON.stringify({ version: "1.0.0", time: { "1.0.0": "2026-04-01T00:00:00.000Z" } }),
+        status: 0,
+      });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      expect(report.packages[0]?.perPackageIssueCodes).toEqual([]);
     });
   });
 });

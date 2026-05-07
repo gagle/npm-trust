@@ -26,6 +26,7 @@ export {
   formatValidateReportJson,
   runValidate,
 } from "./validate.js";
+export { readWorkflowSnapshotReport } from "./workflow.js";
 export type {
   ConfigureTrustOptions,
   DiscoveredWorkspace,

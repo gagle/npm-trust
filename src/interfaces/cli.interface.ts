@@ -16,6 +16,7 @@ export interface CliOptions {
 
 export interface WorkflowSnapshotReport {
   readonly file: string;
+  readonly fileHash: string;
   readonly hasIdTokenWrite: boolean;
   readonly setupNodeRegistryUrl: string | null;
   readonly setupNodeAlwaysAuth: boolean;
@@ -115,10 +116,14 @@ export type RepoHost = "github" | "other" | null;
 
 export interface PackageDoctorEntry extends PackageStatus {
   readonly discrepancies: ReadonlyArray<string>;
+  readonly latestVersion?: string;
+  readonly lastSuccessfulPublish?: string;
+  readonly perPackageIssueCodes: ReadonlyArray<DoctorIssueCode>;
 }
 
 export interface DoctorReport {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 1 | 2;
+  readonly workflowSnapshot?: WorkflowSnapshotReport;
   readonly cli: {
     readonly version: string;
     readonly path: string;

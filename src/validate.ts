@@ -1,6 +1,6 @@
 import { inspectAuth, inspectRepo } from "./doctor.js";
 import type { Logger, ValidateReport } from "./interfaces/cli.interface.js";
-import { readReleaseWorkflow } from "./workflow.js";
+import { readWorkflowSnapshotReport } from "./workflow.js";
 
 export interface RunValidateOptions {
   readonly cwd: string;
@@ -29,17 +29,11 @@ export async function collectValidateReport(
   if (workflowFile === undefined || workflowFile === "") {
     workflow = { found: false, error: "no --workflow specified" };
   } else {
-    const snapshot = await readReleaseWorkflow(options.cwd, workflowFile);
-    if (snapshot === null) {
+    const report = await readWorkflowSnapshotReport(options.cwd, workflowFile);
+    if (report === null) {
       workflow = { found: false, error: `workflow file not found: ${workflowFile}` };
     } else {
-      workflow = {
-        file: workflowFile,
-        hasIdTokenWrite: snapshot.hasIdTokenWrite,
-        setupNodeRegistryUrl: snapshot.setupNodeRegistryUrl,
-        setupNodeAlwaysAuth: snapshot.setupNodeAlwaysAuth,
-        publishStepEnvAuthSecret: snapshot.publishStepEnvAuthSecret,
-      };
+      workflow = report;
     }
   }
 

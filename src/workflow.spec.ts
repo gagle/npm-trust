@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseReleaseWorkflow, readReleaseWorkflow } from "./workflow.js";
+import {
+  parseReleaseWorkflow,
+  readReleaseWorkflow,
+  readWorkflowSnapshotReport,
+} from "./workflow.js";
 
 describe("parseReleaseWorkflow", () => {
   describe("when the workflow uses OIDC + setup-node", () => {
@@ -161,5 +165,29 @@ describe("readReleaseWorkflow", () => {
       const result = await readReleaseWorkflow("/tmp/repo", "release.yml");
       expect(result).toBeNull();
     });
+  });
+});
+
+describe("readWorkflowSnapshotReport", () => {
+  afterEach(() => {
+    readFileMock.mockReset();
+  });
+
+  it("should return a report with file, deterministic sha256 fileHash, and parsed fields", async () => {
+    const content = "permissions:\n  id-token: write\n";
+    readFileMock.mockResolvedValueOnce(content);
+    const result = await readWorkflowSnapshotReport("/tmp/repo", "release.yml");
+    const expectedHash = "5618aed80a990725fcd86aee6d94af74c46bb01febdf80d1619ef11497a8b05b";
+    expect(result).not.toBeNull();
+    expect(result?.file).toBe("release.yml");
+    expect(result?.fileHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(result?.fileHash).toBe(expectedHash);
+    expect(result?.hasIdTokenWrite).toBe(true);
+  });
+
+  it("should return null when the file is missing", async () => {
+    readFileMock.mockRejectedValueOnce(new Error("ENOENT"));
+    const result = await readWorkflowSnapshotReport("/tmp/repo", "release.yml");
+    expect(result).toBeNull();
   });
 });

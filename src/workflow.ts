@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { WorkflowSnapshotReport } from "./interfaces/cli.interface.js";
 
 export interface WorkflowSnapshot {
   readonly hasIdTokenWrite: boolean;
@@ -90,6 +92,27 @@ export async function readReleaseWorkflow(
   try {
     const content = await readFile(join(cwd, ".github", "workflows", workflowFile), "utf-8");
     return parseReleaseWorkflow(content);
+  } catch {
+    return null;
+  }
+}
+
+export async function readWorkflowSnapshotReport(
+  cwd: string,
+  workflowFile: string,
+): Promise<WorkflowSnapshotReport | null> {
+  try {
+    const content = await readFile(join(cwd, ".github", "workflows", workflowFile), "utf-8");
+    const snapshot = parseReleaseWorkflow(content);
+    const fileHash = createHash("sha256").update(content).digest("hex");
+    return {
+      file: workflowFile,
+      fileHash,
+      hasIdTokenWrite: snapshot.hasIdTokenWrite,
+      setupNodeRegistryUrl: snapshot.setupNodeRegistryUrl,
+      setupNodeAlwaysAuth: snapshot.setupNodeAlwaysAuth,
+      publishStepEnvAuthSecret: snapshot.publishStepEnvAuthSecret,
+    };
   } catch {
     return null;
   }
