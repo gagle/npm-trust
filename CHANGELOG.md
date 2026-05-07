@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.1](https://github.com/gagle/npm-trust/compare/v0.9.0...v0.9.1) (2026-05-07)
+
+Patch release. No source / CLI surface changes — bumps to ship the polish accumulated since v0.9.0 + verifies CLI flag compatibility with the [`gagle/solo-npm`](https://github.com/gagle/solo-npm) v0.16.0 pin (which moves from `^0.4` to `^0.9`).
+
+### Changes
+
+- **Built with AI badge** added to `README.md` (commit `a8587d3`).
+- **Adopted `solo-npm` marketplace plugin via thin wrappers** in dogfood skills (commit `b56bd97`):
+  - `.claude/skills/release/SKILL.md` — was a 341-line standalone skill; now a 27-line thin wrapper that invokes `/solo-npm:release`. The `release-solo-npm` skill was removed entirely.
+  - `.claude/skills/verify/SKILL.md` — refreshed to match solo-npm's wrapper convention.
+  - `.claude/settings.json` — declares the marketplace + plugin install.
+
+### Compatibility note for `solo-npm` consumers
+
+Every CLI flag that the `/solo-npm:trust` skill body exercises (`--auto`, `--doctor`, `--json`, `--list`, `--only-new`, `--dry-run`, `--repo`, `--workflow`, `--scope`, `--packages`) is present and shape-stable in `0.9.1`. solo-npm's `^0.9` pin is safe.
+
 ## [0.9.0](https://github.com/gagle/npm-trust/compare/v0.8.0...v0.9.0) (2026-05-04)
 
 ### Refocus on pure CLI — Breaking Changes
