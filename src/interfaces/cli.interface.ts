@@ -11,6 +11,32 @@ export interface CliOptions {
   readonly json?: boolean;
   readonly emitWorkflow?: boolean;
   readonly verifyProvenance?: boolean;
+  readonly validateOnly?: boolean;
+}
+
+export interface WorkflowSnapshotReport {
+  readonly file: string;
+  readonly hasIdTokenWrite: boolean;
+  readonly setupNodeRegistryUrl: string | null;
+  readonly setupNodeAlwaysAuth: boolean;
+  readonly publishStepEnvAuthSecret: string | null;
+}
+
+export interface ValidateReport {
+  readonly schemaVersion: 1;
+  readonly workflow: WorkflowSnapshotReport | { readonly found: false; readonly error: string };
+  readonly repo: {
+    readonly url: string | null;
+    readonly inferredSlug: string | null;
+    readonly host: RepoHost;
+  };
+  readonly auth: {
+    readonly loggedIn: boolean;
+    readonly username: string | null;
+    readonly registry: string;
+  };
+  readonly ready: boolean;
+  readonly failures: ReadonlyArray<string>;
 }
 
 export interface ProvenanceEntry {

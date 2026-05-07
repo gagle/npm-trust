@@ -7,6 +7,7 @@ import { discoverFromCwd } from "./discover-workspace.js";
 import { runDoctor } from "./doctor.js";
 import { EXIT } from "./exit-codes.js";
 import { RELEASE_WORKFLOW_PUBLIC } from "./templates/release-workflow.js";
+import { runValidate } from "./validate.js";
 import {
   formatVerifyProvenanceHuman,
   formatVerifyProvenanceJson,
@@ -101,6 +102,7 @@ Options:
   --emit-workflow        print the canonical OIDC release.yml template to stdout
                          (consumers redirect to .github/workflows/release.yml)
   --verify-provenance    bulk-query provenance attestations for the discovered/named packages
+  --validate-only        fast read-only pre-flight (workflow + repo + auth, no per-package npm calls)
   --help                 show this help message
 
 Note: 'npm trust' uses web-based 2FA only. The first call opens a browser
@@ -134,6 +136,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       help: { type: "boolean", default: false },
       "emit-workflow": { type: "boolean", default: false },
       "verify-provenance": { type: "boolean", default: false },
+      "validate-only": { type: "boolean", default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -161,6 +164,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       json: Boolean(values.json),
       emitWorkflow: Boolean(values["emit-workflow"]),
       verifyProvenance: Boolean(values["verify-provenance"]),
+      validateOnly: Boolean(values["validate-only"]),
     },
   };
 }
@@ -234,6 +238,19 @@ export async function runCli(
     if (options.emitWorkflow) {
       logger.log(RELEASE_WORKFLOW_PUBLIC);
       return EXIT.SUCCESS;
+    }
+
+    if (options.validateOnly) {
+      if (options.doctor) {
+        logger.error("Error: --validate-only and --doctor are mutually exclusive");
+        return EXIT.CONFIGURATION_ERROR;
+      }
+      return await runValidate({
+        cwd: process.cwd(),
+        workflow: options.workflow,
+        json: Boolean(options.json),
+        logger,
+      });
     }
 
     if (options.doctor) {

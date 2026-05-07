@@ -246,7 +246,7 @@ function satisfiesNpmVersion(version: string): boolean {
   return patch >= NPM_REQUIRED_PATCH;
 }
 
-function inspectAuth(): { loggedIn: boolean; username: string | null; registry: string } {
+export function inspectAuth(): { loggedIn: boolean; username: string | null; registry: string } {
   const whoami = spawnSync(resolveNpmBin(), ["whoami"], {
     encoding: "utf-8",
     stdio: ["pipe", "pipe", "pipe"],
@@ -263,7 +263,7 @@ function inspectAuth(): { loggedIn: boolean; username: string | null; registry: 
   return { loggedIn, username, registry };
 }
 
-function inspectRepo(cwd: string): {
+export function inspectRepo(cwd: string): {
   url: string | null;
   inferredSlug: string | null;
   host: RepoHost;

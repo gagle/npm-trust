@@ -20,6 +20,12 @@ export {
   formatVerifyProvenanceJson,
   verifyProvenance,
 } from "./verify-provenance.js";
+export {
+  collectValidateReport,
+  formatValidateReportHuman,
+  formatValidateReportJson,
+  runValidate,
+} from "./validate.js";
 export type {
   ConfigureTrustOptions,
   DiscoveredWorkspace,
@@ -36,7 +42,9 @@ export type {
   ProvenanceEntry,
   TrustResult,
   TrustSummary,
+  ValidateReport,
   VerifyProvenanceReport,
   VersionCheck,
+  WorkflowSnapshotReport,
   WorkspaceSource,
 } from "./interfaces/cli.interface.js";

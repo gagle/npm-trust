@@ -8,6 +8,7 @@ const configureTrustMock = vi.fn();
 const listTrustMock = vi.fn();
 const runDoctorMock = vi.fn();
 const verifyProvenanceMock = vi.fn();
+const runValidateMock = vi.fn();
 
 vi.mock("node:child_process", () => ({
   spawnSync: (...args: ReadonlyArray<unknown>) => spawnSyncMock(...args),
@@ -39,6 +40,10 @@ vi.mock("./verify-provenance.js", () => ({
   verifyProvenance: (...args: ReadonlyArray<unknown>) => verifyProvenanceMock(...args),
   formatVerifyProvenanceJson: (report: unknown) => `JSON:${JSON.stringify(report)}`,
   formatVerifyProvenanceHuman: (_report: unknown) => "HUMAN-PROVENANCE-OUTPUT",
+}));
+
+vi.mock("./validate.js", () => ({
+  runValidate: (...args: ReadonlyArray<unknown>) => runValidateMock(...args),
 }));
 
 const { CliError, checkNodeVersion, checkNpmVersion, parseCliArgs, printUsage, runCli } =
@@ -380,6 +385,43 @@ describe("runCli", () => {
       expect(discoverPackagesMock).not.toHaveBeenCalled();
       expect(configureTrustMock).not.toHaveBeenCalled();
       expect(runDoctorMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when --validate-only is passed", () => {
+    it("should call runValidate and return its exit code", async () => {
+      runValidateMock.mockResolvedValueOnce(0);
+      const logger = createLogger();
+      const exitCode = await runCli(["--validate-only", "--workflow", "release.yml"], logger);
+      expect(exitCode).toBe(0);
+      expect(runValidateMock).toHaveBeenCalledTimes(1);
+      const callArgs = runValidateMock.mock.calls[0]?.[0] as { workflow?: string; json?: boolean };
+      expect(callArgs.workflow).toBe("release.yml");
+      expect(callArgs.json).toBe(false);
+    });
+
+    it("should propagate non-zero exit codes from runValidate", async () => {
+      runValidateMock.mockResolvedValueOnce(1);
+      const logger = createLogger();
+      const exitCode = await runCli(["--validate-only"], logger);
+      expect(exitCode).toBe(1);
+    });
+
+    it("should pass json=true through to runValidate when --json is set", async () => {
+      runValidateMock.mockResolvedValueOnce(0);
+      const logger = createLogger();
+      await runCli(["--validate-only", "--json"], logger);
+      const callArgs = runValidateMock.mock.calls[0]?.[0] as { json?: boolean };
+      expect(callArgs.json).toBe(true);
+    });
+
+    it("should reject combination with --doctor and exit CONFIGURATION_ERROR", async () => {
+      const logger = createLogger();
+      const exitCode = await runCli(["--validate-only", "--doctor"], logger);
+      expect(exitCode).toBe(EXIT.CONFIGURATION_ERROR);
+      expect(runValidateMock).not.toHaveBeenCalled();
+      expect(runDoctorMock).not.toHaveBeenCalled();
+      expect(logger.errors.some((e) => e.includes("mutually exclusive"))).toBe(true);
     });
   });
 
