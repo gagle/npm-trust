@@ -7,6 +7,11 @@ import { discoverFromCwd } from "./discover-workspace.js";
 import { runDoctor } from "./doctor.js";
 import { EXIT } from "./exit-codes.js";
 import { RELEASE_WORKFLOW_PUBLIC } from "./templates/release-workflow.js";
+import {
+  formatVerifyProvenanceHuman,
+  formatVerifyProvenanceJson,
+  verifyProvenance,
+} from "./verify-provenance.js";
 import type {
   CliOptions,
   Logger,
@@ -92,9 +97,10 @@ Options:
   --only-new             filter to packages that have no OIDC trust yet or are unpublished
   --dry-run              show what would be done without making changes
   --doctor               print a structured environment + per-package health report
-  --json                 emit machine-readable JSON (only meaningful with --doctor)
+  --json                 emit machine-readable JSON (with --doctor or --verify-provenance)
   --emit-workflow        print the canonical OIDC release.yml template to stdout
                          (consumers redirect to .github/workflows/release.yml)
+  --verify-provenance    bulk-query provenance attestations for the discovered/named packages
   --help                 show this help message
 
 Note: 'npm trust' uses web-based 2FA only. The first call opens a browser
@@ -127,6 +133,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       json: { type: "boolean", default: false },
       help: { type: "boolean", default: false },
       "emit-workflow": { type: "boolean", default: false },
+      "verify-provenance": { type: "boolean", default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -153,6 +160,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       doctor: Boolean(values.doctor),
       json: Boolean(values.json),
       emitWorkflow: Boolean(values["emit-workflow"]),
+      verifyProvenance: Boolean(values["verify-provenance"]),
     },
   };
 }
@@ -276,6 +284,15 @@ export async function runCli(
     }
 
     validatePackages(packages);
+
+    if (options.verifyProvenance) {
+      const report = await verifyProvenance(packages);
+      const output = options.json
+        ? formatVerifyProvenanceJson(report)
+        : formatVerifyProvenanceHuman(report);
+      logger.log(output);
+      return EXIT.SUCCESS;
+    }
 
     let workingPackages = packages;
     if (options.onlyNew) {

@@ -7,6 +7,7 @@ const findUnconfiguredPackagesMock = vi.fn();
 const configureTrustMock = vi.fn();
 const listTrustMock = vi.fn();
 const runDoctorMock = vi.fn();
+const verifyProvenanceMock = vi.fn();
 
 vi.mock("node:child_process", () => ({
   spawnSync: (...args: ReadonlyArray<unknown>) => spawnSyncMock(...args),
@@ -32,6 +33,12 @@ vi.mock("./trust.js", () => ({
 
 vi.mock("./doctor.js", () => ({
   runDoctor: (...args: ReadonlyArray<unknown>) => runDoctorMock(...args),
+}));
+
+vi.mock("./verify-provenance.js", () => ({
+  verifyProvenance: (...args: ReadonlyArray<unknown>) => verifyProvenanceMock(...args),
+  formatVerifyProvenanceJson: (report: unknown) => `JSON:${JSON.stringify(report)}`,
+  formatVerifyProvenanceHuman: (_report: unknown) => "HUMAN-PROVENANCE-OUTPUT",
 }));
 
 const { CliError, checkNodeVersion, checkNpmVersion, parseCliArgs, printUsage, runCli } =
@@ -373,6 +380,66 @@ describe("runCli", () => {
       expect(discoverPackagesMock).not.toHaveBeenCalled();
       expect(configureTrustMock).not.toHaveBeenCalled();
       expect(runDoctorMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when --verify-provenance is passed (text mode)", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      const fakeReport = {
+        schemaVersion: 1,
+        packages: [],
+        summary: { total: 1, withProvenance: 1, withoutProvenance: 0, unpublished: 0 },
+      };
+      verifyProvenanceMock.mockResolvedValueOnce(fakeReport);
+      logger = createLogger();
+      exitCode = await runCli(["--packages", "@x/a", "--verify-provenance"], logger);
+    });
+
+    it("should exit 0", () => {
+      expect(exitCode).toBe(EXIT.SUCCESS);
+    });
+
+    it("should call verifyProvenance with the package list", () => {
+      expect(verifyProvenanceMock).toHaveBeenCalledWith(["@x/a"]);
+    });
+
+    it("should write the human-formatted output", () => {
+      expect(logger.logs).toContain("HUMAN-PROVENANCE-OUTPUT");
+    });
+
+    it("should not invoke configure or list", () => {
+      expect(configureTrustMock).not.toHaveBeenCalled();
+      expect(listTrustMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when --verify-provenance is passed with --json", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      const fakeReport = {
+        schemaVersion: 1,
+        packages: [],
+        summary: { total: 0, withProvenance: 0, withoutProvenance: 0, unpublished: 0 },
+      };
+      verifyProvenanceMock.mockResolvedValueOnce(fakeReport);
+      logger = createLogger();
+      exitCode = await runCli(
+        ["--packages", "@x/a", "--verify-provenance", "--json"],
+        logger,
+      );
+    });
+
+    it("should exit 0", () => {
+      expect(exitCode).toBe(EXIT.SUCCESS);
+    });
+
+    it("should write the JSON-formatted output", () => {
+      expect(logger.logs.some((l) => l.startsWith("JSON:"))).toBe(true);
     });
   });
 

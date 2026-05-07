@@ -12,7 +12,7 @@ function buildSpawnEnv(): NodeJS.ProcessEnv {
   return { ...process.env, npm_config_loglevel: "error" };
 }
 
-interface CapturedRun {
+export interface CapturedRun {
   readonly stdout: string;
   readonly status: number;
 }
@@ -26,7 +26,7 @@ function runNpmSync(args: ReadonlyArray<string>): CapturedRun {
   return { stdout: result.stdout ?? "", status: result.status ?? 1 };
 }
 
-async function runNpmAsync(args: ReadonlyArray<string>): Promise<CapturedRun> {
+export async function runNpmAsync(args: ReadonlyArray<string>): Promise<CapturedRun> {
   return new Promise((resolve) => {
     const child = spawn(resolveNpmBin(), [...args], {
       env: buildSpawnEnv(),

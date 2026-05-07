@@ -15,6 +15,11 @@ export { configureTrust, listTrust } from "./trust.js";
 export { runCli } from "./cli.js";
 export { EXIT } from "./exit-codes.js";
 export type { ExitCode } from "./exit-codes.js";
+export {
+  formatVerifyProvenanceHuman,
+  formatVerifyProvenanceJson,
+  verifyProvenance,
+} from "./verify-provenance.js";
 export type {
   ConfigureTrustOptions,
   DiscoveredWorkspace,
@@ -28,8 +33,10 @@ export type {
   PackageStatus,
   RepoHost,
   RuntimeLogger,
+  ProvenanceEntry,
   TrustResult,
   TrustSummary,
+  VerifyProvenanceReport,
   VersionCheck,
   WorkspaceSource,
 } from "./interfaces/cli.interface.js";

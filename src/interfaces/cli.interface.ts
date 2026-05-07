@@ -10,6 +10,26 @@ export interface CliOptions {
   readonly doctor?: boolean;
   readonly json?: boolean;
   readonly emitWorkflow?: boolean;
+  readonly verifyProvenance?: boolean;
+}
+
+export interface ProvenanceEntry {
+  readonly pkg: string;
+  readonly latestVersion: string | null;
+  readonly provenancePresent: boolean;
+  readonly attestationCount: number;
+  readonly lastAttestationAt: string | null;
+}
+
+export interface VerifyProvenanceReport {
+  readonly schemaVersion: 1;
+  readonly packages: ReadonlyArray<ProvenanceEntry>;
+  readonly summary: {
+    readonly total: number;
+    readonly withProvenance: number;
+    readonly withoutProvenance: number;
+    readonly unpublished: number;
+  };
 }
 
 export type WorkspaceSource = "pnpm-workspace" | "npm-workspace" | "single-package";
