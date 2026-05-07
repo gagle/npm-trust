@@ -9,6 +9,7 @@ interface NpmViewExtract {
   readonly provenancePresent: boolean;
   readonly attestationCount: number;
   readonly lastAttestationAt: string | null;
+  readonly unpackedSize: number | undefined;
 }
 
 const EMPTY_EXTRACT: NpmViewExtract = {
@@ -16,6 +17,7 @@ const EMPTY_EXTRACT: NpmViewExtract = {
   provenancePresent: false,
   attestationCount: 0,
   lastAttestationAt: null,
+  unpackedSize: undefined,
 };
 
 function parseNpmViewBulk(captured: CapturedRun): NpmViewExtract {
@@ -39,16 +41,20 @@ function parseNpmViewBulk(captured: CapturedRun): NpmViewExtract {
   const latestVersion = typeof root["version"] === "string" ? root["version"] : null;
 
   const dist = root["dist"];
+  const distRecord = typeof dist === "object" && dist !== null ? (dist as Record<string, unknown>) : null;
   const distAttestations =
-    typeof dist === "object" && dist !== null && "attestations" in dist
-      ? (dist as Record<string, unknown>)["attestations"]
-      : null;
+    distRecord !== null && "attestations" in distRecord ? distRecord["attestations"] : null;
   const provenancePresent = distAttestations !== null && distAttestations !== undefined;
   const attestationCount = Array.isArray(distAttestations)
     ? distAttestations.length
     : provenancePresent
       ? 1
       : 0;
+  const unpackedSizeRaw = distRecord !== null ? distRecord["unpackedSize"] : undefined;
+  const unpackedSize =
+    typeof unpackedSizeRaw === "number" && Number.isFinite(unpackedSizeRaw)
+      ? unpackedSizeRaw
+      : undefined;
 
   let lastAttestationAt: string | null = null;
   const time = root["time"];
@@ -59,7 +65,13 @@ function parseNpmViewBulk(captured: CapturedRun): NpmViewExtract {
     }
   }
 
-  return { latestVersion, provenancePresent, attestationCount, lastAttestationAt };
+  return {
+    latestVersion,
+    provenancePresent,
+    attestationCount,
+    lastAttestationAt,
+    unpackedSize,
+  };
 }
 
 async function verifyOnePackage(pkg: string): Promise<ProvenanceEntry> {
@@ -71,6 +83,7 @@ async function verifyOnePackage(pkg: string): Promise<ProvenanceEntry> {
     provenancePresent: extract.provenancePresent,
     attestationCount: extract.attestationCount,
     lastAttestationAt: extract.lastAttestationAt,
+    ...(extract.unpackedSize !== undefined ? { unpackedSize: extract.unpackedSize } : {}),
   };
 }
 
@@ -91,7 +104,7 @@ export async function verifyProvenance(
     }
   }
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     packages: results,
     summary: {
       total: results.length,

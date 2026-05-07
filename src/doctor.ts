@@ -108,7 +108,14 @@ async function enrichEntriesWithPublishTime(
       if (!entry.published) {
         return entry;
       }
-      const captured = await runNpmAsync(["view", entry.pkg, "version", "time", "--json"]);
+      const captured = await runNpmAsync([
+        "view",
+        entry.pkg,
+        "version",
+        "time",
+        "dist",
+        "--json",
+      ]);
       if (captured.status !== 0 || captured.stdout.trim() === "") {
         return entry;
       }
@@ -132,7 +139,20 @@ async function enrichEntriesWithPublishTime(
           lastSuccessfulPublish = ts;
         }
       }
-      return { ...entry, latestVersion, lastSuccessfulPublish };
+      let unpackedSize: number | undefined;
+      const dist = obj.dist;
+      if (typeof dist === "object" && dist !== null) {
+        const raw = (dist as Record<string, unknown>)["unpackedSize"];
+        if (typeof raw === "number" && Number.isFinite(raw)) {
+          unpackedSize = raw;
+        }
+      }
+      return {
+        ...entry,
+        latestVersion,
+        lastSuccessfulPublish,
+        ...(unpackedSize !== undefined ? { unpackedSize } : {}),
+      };
     }),
   );
   return results;

@@ -12,6 +12,34 @@ export interface CliOptions {
   readonly emitWorkflow?: boolean;
   readonly verifyProvenance?: boolean;
   readonly validateOnly?: boolean;
+  readonly capabilities?: boolean;
+  readonly withPrepareDist?: boolean;
+}
+
+export interface CapabilitiesFlag {
+  readonly name: string;
+  readonly type: "boolean" | "string" | "string-array";
+}
+
+export interface CapabilitiesJsonSchema {
+  readonly flag: string;
+  readonly schema: string;
+  readonly version: number;
+}
+
+export interface CapabilitiesExitCode {
+  readonly code: number;
+  readonly name: string;
+}
+
+export interface CapabilitiesReport {
+  readonly schemaVersion: 1;
+  readonly name: "npm-trust";
+  readonly version: string;
+  readonly features: ReadonlyArray<string>;
+  readonly flags: ReadonlyArray<CapabilitiesFlag>;
+  readonly jsonSchemas: ReadonlyArray<CapabilitiesJsonSchema>;
+  readonly exitCodes: ReadonlyArray<CapabilitiesExitCode>;
 }
 
 export interface WorkflowSnapshotReport {
@@ -46,10 +74,11 @@ export interface ProvenanceEntry {
   readonly provenancePresent: boolean;
   readonly attestationCount: number;
   readonly lastAttestationAt: string | null;
+  readonly unpackedSize?: number;
 }
 
 export interface VerifyProvenanceReport {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 1 | 2;
   readonly packages: ReadonlyArray<ProvenanceEntry>;
   readonly summary: {
     readonly total: number;
@@ -118,6 +147,7 @@ export interface PackageDoctorEntry extends PackageStatus {
   readonly discrepancies: ReadonlyArray<string>;
   readonly latestVersion?: string;
   readonly lastSuccessfulPublish?: string;
+  readonly unpackedSize?: number;
   readonly perPackageIssueCodes: ReadonlyArray<DoctorIssueCode>;
 }
 

@@ -1831,4 +1831,61 @@ describe("runDoctor", () => {
       expect(report.packages[0]?.perPackageIssueCodes).toEqual([]);
     });
   });
+
+  describe("unpackedSize enrichment (Item W8 / v0.11.0)", () => {
+    it("populates unpackedSize when dist.unpackedSize is a finite number", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          version: "1.0.0",
+          time: { "1.0.0": "2026-04-01T00:00:00.000Z" },
+          dist: { unpackedSize: 12345 },
+        }),
+        status: 0,
+      });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      expect(report.packages[0]?.unpackedSize).toBe(12345);
+    });
+
+    it("omits unpackedSize when dist is missing it", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          version: "1.0.0",
+          time: { "1.0.0": "2026-04-01T00:00:00.000Z" },
+          dist: {},
+        }),
+        status: 0,
+      });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      expect(report.packages[0]?.unpackedSize).toBeUndefined();
+    });
+
+    it("omits unpackedSize when dist field is missing entirely", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          version: "1.0.0",
+          time: { "1.0.0": "2026-04-01T00:00:00.000Z" },
+        }),
+        status: 0,
+      });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      expect(report.packages[0]?.unpackedSize).toBeUndefined();
+    });
+
+    it("omits unpackedSize when value is non-numeric", async () => {
+      setupHealthyEnvironment();
+      runNpmAsyncMock.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          version: "1.0.0",
+          time: { "1.0.0": "2026-04-01T00:00:00.000Z" },
+          dist: { unpackedSize: "not-a-number" },
+        }),
+        status: 0,
+      });
+      const report = await collectReport({ cwd: "/tmp/x", logger: createLogger() });
+      expect(report.packages[0]?.unpackedSize).toBeUndefined();
+    });
+  });
 });

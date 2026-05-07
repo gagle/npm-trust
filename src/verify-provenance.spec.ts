@@ -172,10 +172,58 @@ describe("verifyProvenance", () => {
     });
   });
 
-  it("should set schemaVersion to 1", async () => {
+  it("should set schemaVersion to 2", async () => {
     runNpmAsyncMock.mockResolvedValueOnce(asCaptured(PUBLISHED_WITH_PROVENANCE));
     const report = await verifyProvenance(["@x/a"]);
-    expect(report.schemaVersion).toBe(1);
+    expect(report.schemaVersion).toBe(2);
+  });
+
+  it("should expose unpackedSize when present in dist", async () => {
+    runNpmAsyncMock.mockResolvedValueOnce(
+      asCaptured(
+        JSON.stringify({
+          version: "1.0.0",
+          dist: { attestations: [{}], unpackedSize: 51234 },
+          time: { "1.0.0": "2026-04-22T10:00:00.000Z" },
+        }),
+      ),
+    );
+    const report = await verifyProvenance(["@x/a"]);
+    expect(report.packages[0]?.unpackedSize).toBe(51234);
+  });
+
+  it("should omit unpackedSize when dist is missing it", async () => {
+    runNpmAsyncMock.mockResolvedValueOnce(asCaptured(PUBLISHED_WITH_PROVENANCE));
+    const report = await verifyProvenance(["@x/a"]);
+    expect(report.packages[0]?.unpackedSize).toBeUndefined();
+  });
+
+  it("should omit unpackedSize when value is non-numeric", async () => {
+    runNpmAsyncMock.mockResolvedValueOnce(
+      asCaptured(
+        JSON.stringify({
+          version: "1.0.0",
+          dist: { attestations: [{}], unpackedSize: "not-a-number" },
+          time: { "1.0.0": "2026-04-22T10:00:00.000Z" },
+        }),
+      ),
+    );
+    const report = await verifyProvenance(["@x/a"]);
+    expect(report.packages[0]?.unpackedSize).toBeUndefined();
+  });
+
+  it("should omit unpackedSize when value is non-finite", async () => {
+    runNpmAsyncMock.mockResolvedValueOnce(
+      asCaptured(
+        JSON.stringify({
+          version: "1.0.0",
+          dist: { attestations: [{}], unpackedSize: null },
+          time: { "1.0.0": "2026-04-22T10:00:00.000Z" },
+        }),
+      ),
+    );
+    const report = await verifyProvenance(["@x/a"]);
+    expect(report.packages[0]?.unpackedSize).toBeUndefined();
   });
 });
 
