@@ -8,7 +8,10 @@ export interface WorkflowSnapshot {
   readonly publishStepEnvAuthSecret: string | null;
 }
 
-const ID_TOKEN_WRITE_RE = /^\s*id-token:\s*write\s*$/m;
+// Permissive: accepts trailing whitespace AND optional trailing `# comment`,
+// so a workflow line like `id-token: write   # OIDC for npm trusted publishing`
+// is recognized. (Pre-v0.10.0 the regex was strict-EOL and missed commented lines.)
+const ID_TOKEN_WRITE_RE = /^\s*id-token:\s*write\s*(?:#.*)?$/m;
 const NODE_AUTH_TOKEN_SECRET_RE = /NODE_AUTH_TOKEN:\s*\$\{\{\s*secrets\.([A-Z_][A-Z0-9_]*)\s*\}\}/;
 const SETUP_NODE_RE = /^(\s*)-\s+uses:\s+actions\/setup-node@/;
 const REGISTRY_URL_RE = /^\s*registry-url:\s*(.+?)\s*$/;

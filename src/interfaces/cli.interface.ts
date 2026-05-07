@@ -9,6 +9,7 @@ export interface CliOptions {
   readonly onlyNew?: boolean;
   readonly doctor?: boolean;
   readonly json?: boolean;
+  readonly emitWorkflow?: boolean;
 }
 
 export type WorkspaceSource = "pnpm-workspace" | "npm-workspace" | "single-package";

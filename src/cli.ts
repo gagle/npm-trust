@@ -6,6 +6,7 @@ import { discoverPackages } from "./discover.js";
 import { discoverFromCwd } from "./discover-workspace.js";
 import { runDoctor } from "./doctor.js";
 import { EXIT } from "./exit-codes.js";
+import { RELEASE_WORKFLOW_PUBLIC } from "./templates/release-workflow.js";
 import type {
   CliOptions,
   Logger,
@@ -92,6 +93,8 @@ Options:
   --dry-run              show what would be done without making changes
   --doctor               print a structured environment + per-package health report
   --json                 emit machine-readable JSON (only meaningful with --doctor)
+  --emit-workflow        print the canonical OIDC release.yml template to stdout
+                         (consumers redirect to .github/workflows/release.yml)
   --help                 show this help message
 
 Note: 'npm trust' uses web-based 2FA only. The first call opens a browser
@@ -123,6 +126,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       doctor: { type: "boolean", default: false },
       json: { type: "boolean", default: false },
       help: { type: "boolean", default: false },
+      "emit-workflow": { type: "boolean", default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -148,6 +152,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): ParseCliArgsResult {
       onlyNew: Boolean(values["only-new"]),
       doctor: Boolean(values.doctor),
       json: Boolean(values.json),
+      emitWorkflow: Boolean(values["emit-workflow"]),
     },
   };
 }
@@ -215,6 +220,11 @@ export async function runCli(
 
     if (helpRequested) {
       printUsage(logger);
+      return EXIT.SUCCESS;
+    }
+
+    if (options.emitWorkflow) {
+      logger.log(RELEASE_WORKFLOW_PUBLIC);
       return EXIT.SUCCESS;
     }
 

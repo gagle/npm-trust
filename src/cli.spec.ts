@@ -349,6 +349,33 @@ describe("runCli", () => {
     });
   });
 
+  describe("when --emit-workflow is passed", () => {
+    let logger: CapturingLogger;
+    let exitCode: number;
+
+    beforeEach(async () => {
+      logger = createLogger();
+      exitCode = await runCli(["--emit-workflow"], logger);
+    });
+
+    it("should exit 0", () => {
+      expect(exitCode).toBe(EXIT.SUCCESS);
+    });
+
+    it("should write the canonical workflow template to the logger", () => {
+      expect(logger.logs[0]).toContain("name: Release");
+      expect(logger.logs[0]).toContain("id-token: write");
+      expect(logger.logs[0]).toContain("registry-url: https://registry.npmjs.org");
+    });
+
+    it("should not invoke discovery / configure / doctor", () => {
+      expect(discoverFromCwdMock).not.toHaveBeenCalled();
+      expect(discoverPackagesMock).not.toHaveBeenCalled();
+      expect(configureTrustMock).not.toHaveBeenCalled();
+      expect(runDoctorMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe("when an unknown flag is passed", () => {
     let logger: CapturingLogger;
     let exitCode: number;
