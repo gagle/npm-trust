@@ -128,9 +128,14 @@ npx npm-trust --scope @myorg --repo myorg/repo --workflow release.yml --dry-run
 | `--list`              | list current trust status instead of configuring                                           |
 | `--only-new`          | filter the resolved package list to those without OIDC trust yet, or not yet published     |
 | `--doctor`            | print a structured health report (environment, repo, packages); exit 1 on `fail` issues   |
-| `--json`              | with `--doctor`, emit a machine-parseable JSON report instead of the human view            |
-| `--dry-run`            | show what would be done without making changes                                             |
+| `--validate-only`     | fast read-only pre-flight (workflow + repo + auth, no per-package npm calls)               |
+| `--verify-provenance` | bulk-query provenance attestations for the discovered/named packages                       |
+| `--emit-workflow`     | print the canonical OIDC `release.yml` template to stdout                                  |
+| `--json`              | emit machine-readable JSON (works with `--doctor`, `--list`, `--validate-only`, `--verify-provenance`, and configure) |
+| `--dry-run`           | show what would be done without making changes                                             |
 | `--help`              | show help message                                                                          |
+
+> Downstream consumers should pin to the **public CLI contract** documented in [`docs/cli-api.md`](./docs/cli-api.md) — exit codes, JSON schemas, and migration notes.
 
 ## Example output
 

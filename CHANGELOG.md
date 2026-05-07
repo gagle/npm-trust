@@ -1,5 +1,87 @@
 # Changelog
 
+## [0.10.0](https://github.com/gagle/npm-trust/compare/v0.9.1...v0.10.0) (2026-05-07)
+
+Minor release that adds seven integration improvements aimed at
+downstream consumers (notably the [`gagle/solo-npm`](https://github.com/gagle/solo-npm)
+marketplace plugin's `/trust`, `/release`, `/audit`, and `/status`
+skills). The CLI surface gains three new flags and richer JSON
+schemas; the new [`docs/cli-api.md`](./docs/cli-api.md) documents the
+public contract that downstreams pin to.
+
+### Added
+
+- **Structured exit codes** (`EXIT.*`). New constants for the most
+  common failure modes — `CONFIGURATION_ERROR=10`, `AUTH_FAILURE=20`,
+  `OTP_REQUIRED=21`, `WORKSPACE_DETECTION_FAILED=30`,
+  `REGISTRY_UNREACHABLE=40`, `WEB_2FA_TIMEOUT=50`,
+  `PARTIAL_FAILURE=60`. Exported from the public API as
+  `EXIT` + `ExitCode` type.
+- **`--emit-workflow`** — prints the canonical OIDC `release.yml`
+  template to stdout. Consumers redirect to
+  `.github/workflows/release.yml`.
+- **`--validate-only`** — fast read-only pre-flight that runs the
+  workflow check, repo slug parse, and `npm whoami` only. No
+  per-package registry calls. Mutually exclusive with `--doctor`
+  (returns `CONFIGURATION_ERROR` if both are passed). Useful for the
+  cache-aware delta detection step in `/release`.
+- **`--verify-provenance`** — bulk-queries provenance attestations
+  for the discovered/named packages in one command. Saves N
+  individual `npm view <pkg> dist.attestations` calls in `/audit`
+  and `/status`.
+- **Richer `--doctor --json` schema** (`schemaVersion` 1 → 2):
+  - `workflowSnapshot?: WorkflowSnapshotReport` — populated when
+    `--workflow` matches a known file. Includes a sha256 `fileHash`
+    so consumers can detect drift.
+  - `packages[].latestVersion` and `packages[].lastSuccessfulPublish`
+    — derived from `npm view <pkg> version time --json` per package
+    (run in parallel).
+  - `packages[].perPackageIssueCodes` — issue codes filtered to that
+    specific package, so consumers can render package-scoped warnings
+    without re-walking the global issues array.
+- **`--json` on `--list` and configure**. Both paths now accept
+  `--json` and emit a single buffered JSON blob at the end of the
+  run instead of per-package text. New `ListReport` and
+  `ConfigureReport` schemas; `dry_run` is now a first-class
+  configure result alongside `configured` / `already` /
+  `not_published` / `auth_failed` / `error`.
+- **Public CLI contract docs** — [`docs/cli-api.md`](./docs/cli-api.md)
+  documents stability levels, every flag, all five JSON schemas,
+  the Node library surface, exit codes, and the migration guide.
+  Future-work and explicit-non-goals sections make the project's
+  roadmap visible.
+- **Library exports**: `runValidate`, `collectValidateReport`,
+  `formatValidateReportJson`, `formatValidateReportHuman`,
+  `verifyProvenance`, `formatVerifyProvenanceJson`,
+  `formatVerifyProvenanceHuman`, `readWorkflowSnapshotReport`, and
+  the `EXIT` / `ExitCode` constants. New types:
+  `ValidateReport`, `VerifyProvenanceReport`,
+  `WorkflowSnapshotReport`, `ProvenanceEntry`, `ListReport`,
+  `ListReportEntry`, `ConfigureReport`, `ConfigureReportEntry`,
+  `ConfigureEntryResult`.
+
+### Fixed
+
+- Workflow regex (`hasIdTokenWrite`) now accepts an optional
+  trailing `# comment` on the `id-token: write` line. Pre-0.10.0
+  the regex was strict-EOL and missed any annotated workflow line —
+  this affected the `--emit-workflow` template, which has a comment
+  on that line, and any user workflow with similar annotations.
+
+### Migration notes
+
+- **Configure-path exit code change**: configure now returns `60`
+  (`PARTIAL_FAILURE`) instead of `1` when at least one package fails.
+  Tools using `if (rc !== 0)` are unaffected. Tools that want to
+  distinguish "configuration error" from "package failure" can now
+  branch on the structured codes.
+- **`DoctorReport.schemaVersion`**: bumped from `1` to `2`. Consumers
+  that hardcode `schemaVersion === 1` should switch to
+  `schemaVersion >= 1`. New fields are additive and safely accessible
+  via optional chaining.
+- **No CLI removals**. Every flag from `0.9.1` is still present and
+  shape-stable.
+
 ## [0.9.1](https://github.com/gagle/npm-trust/compare/v0.9.0...v0.9.1) (2026-05-07)
 
 Patch release. No source / CLI surface changes — bumps to ship the polish accumulated since v0.9.0 + verifies CLI flag compatibility with the [`gagle/solo-npm`](https://github.com/gagle/solo-npm) v0.16.0 pin (which moves from `^0.4` to `^0.9`).

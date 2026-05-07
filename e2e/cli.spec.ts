@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { runCli, type RunCliResult } from "./run-cli.js";
+import { EXIT } from "../src/exit-codes.js";
 
 interface RegistryHandler {
   (text: string): { objects: ReadonlyArray<{ package: { name: string } }>; total: number };
@@ -93,8 +94,8 @@ describe("CLI e2e", () => {
       result = await runCli({ args: [] });
     });
 
-    it("should exit 1", () => {
-      expect(result.exitCode).toBe(1);
+    it("should exit CONFIGURATION_ERROR", () => {
+      expect(result.exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should print the requirement listing every entry mode", () => {
@@ -169,8 +170,8 @@ describe("CLI e2e", () => {
       });
     });
 
-    it("should exit 1", () => {
-      expect(result.exitCode).toBe(1);
+    it("should exit WORKSPACE_DETECTION_FAILED", () => {
+      expect(result.exitCode).toBe(EXIT.WORKSPACE_DETECTION_FAILED);
     });
 
     it("should hint at the files it looked for", () => {
@@ -250,8 +251,8 @@ describe("CLI e2e", () => {
       result = await runCli({ args: ["--packages", "@x/a"] });
     });
 
-    it("should exit 1", () => {
-      expect(result.exitCode).toBe(1);
+    it("should exit CONFIGURATION_ERROR", () => {
+      expect(result.exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should print the --repo requirement", () => {
@@ -266,8 +267,8 @@ describe("CLI e2e", () => {
       result = await runCli({ args: ["--packages", "@x/a", "--repo", "o/r"] });
     });
 
-    it("should exit 1", () => {
-      expect(result.exitCode).toBe(1);
+    it("should exit CONFIGURATION_ERROR", () => {
+      expect(result.exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should print the --workflow requirement", () => {
@@ -286,8 +287,8 @@ describe("CLI e2e", () => {
       });
     });
 
-    it("should exit 1", () => {
-      expect(result.exitCode).toBe(1);
+    it("should exit WORKSPACE_DETECTION_FAILED", () => {
+      expect(result.exitCode).toBe(EXIT.WORKSPACE_DETECTION_FAILED);
     });
 
     it("should print 'No packages found'", () => {
@@ -363,8 +364,8 @@ describe("CLI e2e", () => {
       });
     });
 
-    it("should exit 1", () => {
-      expect(result.exitCode).toBe(1);
+    it("should exit PARTIAL_FAILURE", () => {
+      expect(result.exitCode).toBe(EXIT.PARTIAL_FAILURE);
     });
 
     it("should print 'authentication failed'", () => {
@@ -461,8 +462,8 @@ describe("CLI e2e", () => {
       });
     });
 
-    it("should exit 1", () => {
-      expect(result.exitCode).toBe(1);
+    it("should exit PARTIAL_FAILURE", () => {
+      expect(result.exitCode).toBe(EXIT.PARTIAL_FAILURE);
     });
 
     it("should print 'not published yet'", () => {
@@ -481,8 +482,8 @@ describe("CLI e2e", () => {
       });
     });
 
-    it("should exit 1 (rejected by package-name validation)", () => {
-      expect(result.exitCode).toBe(1);
+    it("should exit CONFIGURATION_ERROR (rejected by package-name validation)", () => {
+      expect(result.exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should not invoke npm at all", () => {
@@ -503,8 +504,8 @@ describe("CLI e2e", () => {
       });
     });
 
-    it("should exit 1", () => {
-      expect(result.exitCode).toBe(1);
+    it("should exit CONFIGURATION_ERROR", () => {
+      expect(result.exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should print the --repo validation error", () => {
@@ -521,8 +522,8 @@ describe("CLI e2e", () => {
       });
     });
 
-    it("should exit 1", () => {
-      expect(result.exitCode).toBe(1);
+    it("should exit CONFIGURATION_ERROR", () => {
+      expect(result.exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should print the --workflow validation error", () => {
@@ -577,7 +578,7 @@ describe("CLI e2e", () => {
 
     it("should emit parseable JSON to stdout", () => {
       const parsed = JSON.parse(result.stdout);
-      expect(parsed.schemaVersion).toBe(1);
+      expect(parsed.schemaVersion).toBe(2);
     });
 
     it("should include the workspace detection result", () => {
