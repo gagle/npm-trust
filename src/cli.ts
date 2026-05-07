@@ -5,6 +5,7 @@ import { findUnconfiguredPackages } from "./diff.js";
 import { discoverPackages } from "./discover.js";
 import { discoverFromCwd } from "./discover-workspace.js";
 import { runDoctor } from "./doctor.js";
+import { EXIT } from "./exit-codes.js";
 import type {
   CliOptions,
   Logger,
@@ -36,14 +37,14 @@ export function checkNodeVersion(): void {
   if (typeof version !== "string") {
     throw new CliError(
       `Error: Node.js >= ${MIN_NODE_MAJOR} required (process.versions.node is unavailable).`,
-      1,
+      EXIT.GENERIC_FAILURE,
     );
   }
   const major = Number(version.split(".")[0]);
   if (Number.isNaN(major) || major < MIN_NODE_MAJOR) {
     throw new CliError(
       `Error: Node.js >= ${MIN_NODE_MAJOR} required (found ${version}). Install via nvm: nvm install ${MIN_NODE_MAJOR}.`,
-      1,
+      EXIT.GENERIC_FAILURE,
     );
   }
 }
@@ -57,7 +58,7 @@ export function checkNpmVersion(): void {
   if (result.error || result.status !== 0) {
     throw new CliError(
       `Error: could not determine npm version. Ensure npm >= ${MIN_NPM_VERSION} is installed.`,
-      1,
+      EXIT.GENERIC_FAILURE,
     );
   }
   const version = result.stdout.trim();
@@ -65,7 +66,7 @@ export function checkNpmVersion(): void {
   if (Number.isNaN(major) || major < MIN_NPM_MAJOR) {
     throw new CliError(
       `Error: npm >= ${MIN_NPM_MAJOR} required (found ${version}). The "npm trust" command was added in npm ${MIN_NPM_VERSION}.`,
-      1,
+      EXIT.GENERIC_FAILURE,
     );
   }
 }
@@ -155,7 +156,7 @@ function validateRepo(repo: string): void {
   if (!REPO_PATTERN.test(repo)) {
     throw new CliError(
       "Error: --repo must match <owner>/<repo> using letters, digits, '.', '_', or '-'",
-      1,
+      EXIT.CONFIGURATION_ERROR,
     );
   }
 }
@@ -164,7 +165,7 @@ function validateWorkflow(workflow: string): void {
   if (!WORKFLOW_PATTERN.test(workflow)) {
     throw new CliError(
       "Error: --workflow must be a .yml or .yaml filename using letters, digits, '.', '_', '-', or '/'",
-      1,
+      EXIT.CONFIGURATION_ERROR,
     );
   }
 }
@@ -174,7 +175,7 @@ function validatePackages(packages: ReadonlyArray<string>): void {
     if (!PACKAGE_NAME_PATTERN.test(pkg)) {
       throw new CliError(
         `Error: invalid package name "${pkg}". Names must match npm's published-package format (optionally @scope/name, lowercase, no leading dash).`,
-        1,
+        EXIT.CONFIGURATION_ERROR,
       );
     }
   }
@@ -214,7 +215,7 @@ export async function runCli(
 
     if (helpRequested) {
       printUsage(logger);
-      return 0;
+      return EXIT.SUCCESS;
     }
 
     if (options.doctor) {
@@ -246,7 +247,7 @@ export async function runCli(
         logger.error(
           "Looked for: pnpm-workspace.yaml, package.json#workspaces, ./package.json with name.",
         );
-        return 1;
+        return EXIT.WORKSPACE_DETECTION_FAILED;
       }
       packages = discovered.packages;
       logger.log(
@@ -256,12 +257,12 @@ export async function runCli(
     } else {
       logger.error("Error: --auto, --scope, or --packages is required");
       logger.error("Run with --help for usage");
-      return 1;
+      return EXIT.CONFIGURATION_ERROR;
     }
 
     if (packages.length === 0) {
       logger.error("No packages found");
-      return 1;
+      return EXIT.WORKSPACE_DETECTION_FAILED;
     }
 
     validatePackages(packages);
@@ -274,24 +275,24 @@ export async function runCli(
       logger.log("");
       if (filtered.length === 0) {
         logger.log("All packages already have OIDC trust configured.");
-        return 0;
+        return EXIT.SUCCESS;
       }
       workingPackages = filtered;
     }
 
     if (options.list) {
       listTrust({ packages: workingPackages, logger });
-      return 0;
+      return EXIT.SUCCESS;
     }
 
     if (!options.repo) {
       logger.error("Error: --repo is required");
-      return 1;
+      return EXIT.CONFIGURATION_ERROR;
     }
 
     if (!options.workflow) {
       logger.error("Error: --workflow is required");
-      return 1;
+      return EXIT.CONFIGURATION_ERROR;
     }
 
     validateRepo(options.repo);
@@ -305,7 +306,7 @@ export async function runCli(
       logger,
     });
 
-    return summary.failed > 0 ? 1 : 0;
+    return summary.failed > 0 ? EXIT.PARTIAL_FAILURE : EXIT.SUCCESS;
   } catch (error) {
     if (error instanceof CliError) {
       logger.error(error.message);
@@ -314,6 +315,6 @@ export async function runCli(
     const message = error instanceof Error ? error.message : String(error);
     logger.error(`Error: ${message}`);
     logger.error("Run with --help for usage");
-    return 1;
+    return EXIT.GENERIC_FAILURE;
   }
 }

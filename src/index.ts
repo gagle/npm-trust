@@ -13,6 +13,8 @@ export {
 } from "./doctor.js";
 export { configureTrust, listTrust } from "./trust.js";
 export { runCli } from "./cli.js";
+export { EXIT } from "./exit-codes.js";
+export type { ExitCode } from "./exit-codes.js";
 export type {
   ConfigureTrustOptions,
   DiscoveredWorkspace,

@@ -36,6 +36,7 @@ vi.mock("./doctor.js", () => ({
 
 const { CliError, checkNodeVersion, checkNpmVersion, parseCliArgs, printUsage, runCli } =
   await import("./cli.js");
+const { EXIT } = await import("./exit-codes.js");
 
 interface CapturingLogger {
   readonly log: (message: string) => void;
@@ -370,7 +371,7 @@ describe("runCli", () => {
     });
   });
 
-  describe("when --packages contains a name with disallowed characters", () => {
+  describe("when --packages contains a name with disallowed characters (CONFIGURATION_ERROR)", () => {
     let logger: CapturingLogger;
     let exitCode: number;
 
@@ -382,8 +383,8 @@ describe("runCli", () => {
       );
     });
 
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
+    it("should exit with CONFIGURATION_ERROR (10)", () => {
+      expect(exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should log an invalid-package-name error", () => {
@@ -400,8 +401,8 @@ describe("runCli", () => {
       exitCode = await runCli([], logger);
     });
 
-    it("should return exit code 1", () => {
-      expect(exitCode).toBe(1);
+    it("should return exit code CONFIGURATION_ERROR (10)", () => {
+      expect(exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should log a message about --auto, --scope, or --packages", () => {
@@ -499,8 +500,8 @@ describe("runCli", () => {
       exitCode = await runCli(["--auto"], logger);
     });
 
-    it("should return exit code 1", () => {
-      expect(exitCode).toBe(1);
+    it("should return exit code WORKSPACE_DETECTION_FAILED (30)", () => {
+      expect(exitCode).toBe(EXIT.WORKSPACE_DETECTION_FAILED);
     });
 
     it("should log a message naming the files it looked for", () => {
@@ -606,8 +607,8 @@ describe("runCli", () => {
       exitCode = await runCli(["--scope", "@x"], logger);
     });
 
-    it("should return exit code 1", () => {
-      expect(exitCode).toBe(1);
+    it("should return exit code WORKSPACE_DETECTION_FAILED (30)", () => {
+      expect(exitCode).toBe(EXIT.WORKSPACE_DETECTION_FAILED);
     });
 
     it("should log 'No packages found'", () => {
@@ -676,8 +677,8 @@ describe("runCli", () => {
       exitCode = await runCli(["--packages", "@x/a", "--workflow", "w.yml"], logger);
     });
 
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
+    it("should exit with CONFIGURATION_ERROR (10)", () => {
+      expect(exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should log a missing --repo error", () => {
@@ -694,8 +695,8 @@ describe("runCli", () => {
       exitCode = await runCli(["--packages", "@x/a", "--repo", "o/r"], logger);
     });
 
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
+    it("should exit with CONFIGURATION_ERROR (10)", () => {
+      expect(exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should log a missing --workflow error", () => {
@@ -715,8 +716,8 @@ describe("runCli", () => {
       );
     });
 
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
+    it("should exit with CONFIGURATION_ERROR (10)", () => {
+      expect(exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should log the --repo validation error", () => {
@@ -736,8 +737,8 @@ describe("runCli", () => {
       );
     });
 
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
+    it("should exit with CONFIGURATION_ERROR (10)", () => {
+      expect(exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should log the --workflow validation error", () => {
@@ -794,8 +795,8 @@ describe("runCli", () => {
       );
     });
 
-    it("should exit 1", () => {
-      expect(exitCode).toBe(1);
+    it("should exit with PARTIAL_FAILURE (60)", () => {
+      expect(exitCode).toBe(EXIT.PARTIAL_FAILURE);
     });
   });
 
@@ -827,8 +828,8 @@ describe("runCli", () => {
       exitCode = await runCli([]);
     });
 
-    it("should exit 1 (no scope/packages)", () => {
-      expect(exitCode).toBe(1);
+    it("should exit with CONFIGURATION_ERROR (10) (no scope/packages)", () => {
+      expect(exitCode).toBe(EXIT.CONFIGURATION_ERROR);
     });
 
     it("should fall back to console.error", () => {
