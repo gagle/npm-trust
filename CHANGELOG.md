@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.11.0](https://github.com/gagle/npm-trust/compare/v0.10.0...v0.11.0) (2026-05-07)
+
+Minor release adding cross-tool integration primitives. Pairs with
+[`prepare-dist`](https://github.com/gagle/prepare-dist) v1.1.0 (which
+also shipped a CLI surface today) and the upcoming
+[`solo-npm`](https://github.com/gagle/solo-npm) v0.17.0 that consumes
+both.
+
+### Added
+
+- **`unpackedSize` field** in `VerifyProvenanceReport.packages[]` and
+  `DoctorReport.packages[]`. Read from `dist.unpackedSize` in the
+  `npm view` response. Lets solo-npm `/verify` Tier 4 bundle-size
+  regression checks read sizes from the same `--verify-provenance`
+  call that already runs, eliminating per-package `npm view` round
+  trips.
+- **`VerifyProvenanceReport.schemaVersion` 1 → 2.** Additive bump for
+  the new optional field; existing consumers reading v1 fields are
+  unaffected.
+- **`--with-prepare-dist`** modifier flag for `--emit-workflow`. Emits
+  a release.yml variant that wires in `gagle/prepare-dist@v1` between
+  `pnpm run build` and `pnpm publish`. Used by projects that publish
+  from a `dist/` directory. Without `--emit-workflow`, the modifier
+  is rejected with `EXIT.CONFIGURATION_ERROR`.
+- **`--capabilities` flag** — emits a `CapabilitiesReport` (schemaVersion
+  1) describing the CLI's name, version, features, flags, JSON schemas,
+  and exit codes. Mirrors the same shape that `prepare-dist` v1.1.0
+  exposes, enabling tool-discovery use cases (e.g., solo-npm `/init`
+  probing the toolchain).
+- **`RELEASE_WORKFLOW_WITH_PREPARE_DIST`** template export from
+  `npm-trust` so consumers can read the variant programmatically.
+- **`buildCapabilitiesReport()`** library export.
+
+### Changed (non-breaking)
+
+- `enrichEntriesWithPublishTime` in doctor now requests `dist` along
+  with `version` and `time` from `npm view`, to populate
+  `unpackedSize`. No new npm calls; one larger response per package.
+
+### Migration notes
+
+- **Schema version**: `VerifyProvenanceReport.schemaVersion` bumped
+  from `1` to `2`. Consumers checking `=== 1` should switch to `>= 1`.
+  No fields removed or renamed.
+- No CLI removals. Every flag from `0.10.0` is still present and
+  shape-stable.
+
 ## [0.10.0](https://github.com/gagle/npm-trust/compare/v0.9.1...v0.10.0) (2026-05-07)
 
 Minor release that adds seven integration improvements aimed at

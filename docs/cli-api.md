@@ -64,6 +64,8 @@ between minor releases. If you depend on it, you'll be on your own.
 | `--validate-only` | fast pre-flight: workflow + repo + auth checks, no per-package npm calls | `0` ready, `1` not ready |
 | `--verify-provenance` | bulk-query provenance attestations for the discovered/named packages | `0` |
 | `--emit-workflow` | print the canonical OIDC `release.yml` to stdout | `0` |
+| `--with-prepare-dist` | modifier for `--emit-workflow`; emits the variant that includes a `gagle/prepare-dist@v1` step | `0`, or `10` if used without `--emit-workflow` |
+| `--capabilities` | emit a `CapabilitiesReport` JSON describing the CLI surface (for tool-discovery) | `0` |
 
 ### Output format
 
@@ -144,6 +146,7 @@ interface PackageDoctorEntry {
   discrepancies: ReadonlyArray<string>;
   latestVersion?: string;             // 0.10.0+
   lastSuccessfulPublish?: string;     // 0.10.0+ — ISO 8601
+  unpackedSize?: number;              // 0.11.0+
   perPackageIssueCodes: ReadonlyArray<DoctorIssueCode>;  // 0.10.0+
 }
 
@@ -214,13 +217,14 @@ interface ValidateReport {
 
 ```ts
 interface VerifyProvenanceReport {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   packages: ReadonlyArray<{
     pkg: string;
     latestVersion: string | null;
     provenancePresent: boolean;
     attestationCount: number;
     lastAttestationAt: string | null;   // ISO 8601
+    unpackedSize?: number;              // 0.11.0+ (schemaVersion 2)
   }>;
   summary: {
     total: number;
@@ -230,6 +234,32 @@ interface VerifyProvenanceReport {
   };
 }
 ```
+
+`schemaVersion` history:
+
+- `1` — initial verify-provenance report (0.10.0).
+- `2` — added optional `unpackedSize` per package (0.11.0).
+
+### `--capabilities --json` → `CapabilitiesReport`
+
+Tool-discovery descriptor. Solo-npm-style orchestrators read this to
+detect at runtime which features the installed `npm-trust` exposes.
+
+```ts
+interface CapabilitiesReport {
+  schemaVersion: 1;
+  name: 'npm-trust';
+  version: string;            // semver from package.json
+  features: ReadonlyArray<string>;
+  flags: ReadonlyArray<{ name: string; type: 'boolean' | 'string' | 'string-array' }>;
+  jsonSchemas: ReadonlyArray<{ flag: string; schema: string; version: number }>;
+  exitCodes: ReadonlyArray<{ code: number; name: string }>;
+}
+```
+
+The same shape is emitted by `prepare-dist --capabilities --json`
+(with `name: "prepare-dist"`), allowing cross-tool orchestrators to
+treat the descriptor uniformly.
 
 ---
 
@@ -274,6 +304,16 @@ import {
 All types listed in the JSON schemas section are exported as well.
 
 ---
+
+## Migration notes — 0.11.0
+
+- `VerifyProvenanceReport.schemaVersion` bumped from `1` to `2`.
+  Consumers that hardcode `=== 1` should switch to `>= 1`. New
+  `unpackedSize` field is optional.
+- `PackageDoctorEntry` gained an optional `unpackedSize` field. No
+  schemaVersion bump (still `2`); the field is optional and additive.
+- New flags: `--with-prepare-dist`, `--capabilities`. Both are pure
+  additions; existing flag combinations are unchanged.
 
 ## Migration notes — 0.10.0
 

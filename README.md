@@ -131,7 +131,9 @@ npx npm-trust --scope @myorg --repo myorg/repo --workflow release.yml --dry-run
 | `--validate-only`     | fast read-only pre-flight (workflow + repo + auth, no per-package npm calls)               |
 | `--verify-provenance` | bulk-query provenance attestations for the discovered/named packages                       |
 | `--emit-workflow`     | print the canonical OIDC `release.yml` template to stdout                                  |
-| `--json`              | emit machine-readable JSON (works with `--doctor`, `--list`, `--validate-only`, `--verify-provenance`, and configure) |
+| `--with-prepare-dist` | modifier for `--emit-workflow`; emits the variant that wires in `gagle/prepare-dist@v1`    |
+| `--capabilities`      | emit a `CapabilitiesReport` JSON describing the CLI surface (for tool-discovery)           |
+| `--json`              | emit machine-readable JSON (works with `--doctor`, `--list`, `--validate-only`, `--verify-provenance`, `--capabilities`, and configure) |
 | `--dry-run`           | show what would be done without making changes                                             |
 | `--help`              | show help message                                                                          |
 
